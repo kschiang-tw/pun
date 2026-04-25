@@ -24,6 +24,13 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
   const recents = window.getRecentCcys ? window.getRecentCcys() : [];
   const all = window.CURRENCIES || [];
 
+  // Lock body scroll while sheet is open (prevents iOS viewport shift)
+  React.useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const filtered = q.trim()
     ? all.filter(([code, name]) => {
         const t = q.trim().toUpperCase();
@@ -65,7 +72,7 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
           }}>
             <Icon.search width={14} height={14} style={{ color: 'var(--ink-3)' }}/>
             <input value={q} onChange={e => setQ(e.target.value)}
-              placeholder="搜尋代碼或名稱" autoFocus style={{
+              placeholder="搜尋代碼或名稱" style={{
                 flex: 1, border: 0, outline: 'none', background: 'transparent',
                 fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)',
               }}/>
