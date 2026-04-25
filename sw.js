@@ -41,12 +41,12 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
 
-  // Pass through: Google OAuth token exchange, Drive API, exchange rates
+  // Pass through: Google OAuth token exchange and Drive API (user-specific, can't cache)
   if (
     url.hostname === 'oauth2.googleapis.com' ||
-    url.hostname === 'www.googleapis.com' ||
-    url.hostname === 'openexchangerates.org'
+    url.hostname === 'www.googleapis.com'
   ) return;
+  // open.er-api.com (exchange rates) goes through normal cache-first handling
 
   event.respondWith(
     caches.match(request).then(cached => {

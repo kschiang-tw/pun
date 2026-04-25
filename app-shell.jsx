@@ -209,7 +209,7 @@ function AboutSheet({ onClose }) {
 
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '18px 0 14px' }}/>
         <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.6 }}>
-          本應用程式使用 React · Google Drive API · Open Exchange Rates
+          本應用程式使用 React · Google Drive API · ExchangeRate-API
         </div>
       </div>
     </div>
