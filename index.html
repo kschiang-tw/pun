@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#f5f0ea"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="pun"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+<link rel="icon" type="image/svg+xml" href="icon.svg"/>
+<title>pun · 旅行分帳</title>
+<link rel="stylesheet" href="tokens.css"/>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, select { -webkit-touch-callout: default; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="engine.js"></script>
+<script src="currencies.js"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="ccy-picker.jsx"></script>
+<script type="text/babel" src="store.jsx"></script>
+<script type="text/babel" src="app-shell.jsx"></script>
+<script type="text/babel" src="app-screens.jsx"></script>
+<script type="text/babel" src="app-forms.jsx"></script>
+<script type="text/babel" src="app-secondary.jsx?v=2"></script>
+<script type="text/babel" src="sync-gdrive.jsx"></script>
+<script type="text/babel" src="app-statement.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    React.createElement(StoreProvider, null, React.createElement(AppShell))
+  );
+</script>
+</body>
+</html>

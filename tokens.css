@@ -1,0 +1,202 @@
+/* Morandi palette — warm, muted, low-saturation */
+:root {
+  /* Surfaces — warm off-whites */
+  --bg: oklch(0.965 0.008 75);
+  --bg-2: oklch(0.945 0.010 70);
+  --bg-3: oklch(0.92 0.012 65);
+  --surface: oklch(0.985 0.005 80);
+  --surface-glass: oklch(0.98 0.005 80 / 0.55);
+  --hairline: oklch(0.30 0.010 70 / 0.10);
+  --hairline-strong: oklch(0.30 0.010 70 / 0.18);
+
+  /* Ink — warm dark instead of pure black */
+  --ink: oklch(0.22 0.012 65);
+  --ink-2: oklch(0.40 0.010 65);
+  --ink-3: oklch(0.55 0.008 70);
+  --ink-4: oklch(0.70 0.006 75);
+
+  /* Morandi accents */
+  --sage: oklch(0.68 0.030 145);
+  --sage-deep: oklch(0.55 0.038 148);
+  --sage-soft: oklch(0.88 0.022 145);
+
+  --clay: oklch(0.72 0.038 42);
+  --clay-deep: oklch(0.58 0.045 38);
+  --clay-soft: oklch(0.90 0.024 45);
+
+  --stone: oklch(0.70 0.020 235);
+  --stone-deep: oklch(0.55 0.028 235);
+  --stone-soft: oklch(0.90 0.014 235);
+
+  --rose: oklch(0.75 0.035 15);
+  --rose-soft: oklch(0.92 0.020 15);
+
+  --plum: oklch(0.55 0.030 320);
+  --plum-soft: oklch(0.88 0.018 320);
+
+  /* Functional */
+  --pos: oklch(0.62 0.038 148);
+  --neg: oklch(0.60 0.045 35);
+
+  /* Type */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+               "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --font-num: "SF Pro Display", -apple-system, system-ui;
+
+  /* Radii */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Safe area */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-top: max(54px, calc(var(--safe-top) + 16px));
+}
+
+/* Dark mode */
+.dark {
+  --bg: oklch(0.18 0.010 70);
+  --bg-2: oklch(0.22 0.012 70);
+  --bg-3: oklch(0.26 0.012 70);
+  --surface: oklch(0.24 0.012 70);
+  --surface-glass: oklch(0.30 0.012 70 / 0.55);
+  --hairline: oklch(0.95 0.005 80 / 0.08);
+  --hairline-strong: oklch(0.95 0.005 80 / 0.15);
+
+  --ink: oklch(0.95 0.005 80);
+  --ink-2: oklch(0.78 0.008 75);
+  --ink-3: oklch(0.62 0.010 70);
+  --ink-4: oklch(0.50 0.010 70);
+
+  --sage-soft: oklch(0.30 0.030 148);
+  --clay-soft: oklch(0.30 0.038 40);
+  --stone-soft: oklch(0.30 0.022 235);
+  --rose-soft: oklch(0.30 0.030 15);
+  --plum-soft: oklch(0.30 0.028 320);
+
+  --pos: oklch(0.74 0.040 148);
+  --neg: oklch(0.74 0.045 35);
+}
+
+/* Reset */
+* { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+#root { min-height: 100svh; }
+button { font-family: inherit; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Liquid Glass */
+.glass {
+  background: var(--surface-glass);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 0.5px solid color-mix(in oklch, var(--ink) 8%, transparent);
+  box-shadow:
+    inset 0 0.5px 0 color-mix(in oklch, white 50%, transparent),
+    inset 0 -0.5px 0 color-mix(in oklch, var(--ink) 5%, transparent),
+    0 1px 2px color-mix(in oklch, var(--ink) 6%, transparent),
+    0 8px 24px color-mix(in oklch, var(--ink) 5%, transparent);
+}
+.dark .glass {
+  background: oklch(0.30 0.012 70 / 0.55);
+  border: 0.5px solid color-mix(in oklch, white 12%, transparent);
+  box-shadow:
+    inset 0 0.5px 0 color-mix(in oklch, white 12%, transparent),
+    0 1px 2px rgba(0,0,0,0.3),
+    0 8px 24px rgba(0,0,0,0.25);
+}
+
+.glass-thick {
+  background: color-mix(in oklch, var(--surface) 75%, transparent);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid color-mix(in oklch, var(--ink) 10%, transparent);
+}
+
+.glass-pill {
+  background: color-mix(in oklch, var(--surface) 65%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid color-mix(in oklch, var(--ink) 10%, transparent);
+  box-shadow:
+    inset 0 0.5px 0 color-mix(in oklch, white 70%, transparent),
+    0 2px 8px color-mix(in oklch, var(--ink) 8%, transparent);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  border: 0.5px solid var(--hairline);
+}
+
+/* Type roles */
+.t-display { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.t-title   { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+.t-h       { font-size: 17px; font-weight: 600; letter-spacing: -0.005em; }
+.t-body    { font-size: 15px; font-weight: 400; line-height: 1.4; }
+.t-meta    { font-size: 13px; font-weight: 400; color: var(--ink-3); }
+.t-cap     { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.t-amount  { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: -0.01em; }
+
+/* Hide scrollbar */
+.no-scroll::-webkit-scrollbar { display: none; }
+.no-scroll { scrollbar-width: none; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 0 18px; height: 44px; border-radius: var(--r-pill);
+  border: 0.5px solid var(--hairline-strong);
+  background: var(--surface); color: var(--ink);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer;
+}
+.btn-primary { background: var(--ink); color: var(--bg); border-color: transparent; }
+.btn-ghost   { background: transparent; border-color: transparent; }
+
+/* Chips */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 500;
+  background: var(--sage-soft); color: var(--sage-deep);
+}
+.chip.clay  { background: var(--clay-soft);  color: var(--clay-deep); }
+.chip.stone { background: var(--stone-soft); color: var(--stone-deep); }
+.chip.rose  { background: var(--rose-soft);  color: oklch(0.50 0.045 15); }
+.chip.plum  { background: var(--plum-soft);  color: var(--plum); }
+
+/* Print */
+@media print {
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  body:has(#statement-doc) > * { visibility: hidden; }
+  body:has(#statement-doc) #statement-doc,
+  body:has(#statement-doc) #statement-doc * { visibility: visible; }
+  body:has(#statement-doc) #statement-doc {
+    position: absolute; left: 0; top: 0; width: 100%;
+    box-shadow: none !important; border-radius: 0 !important;
+    padding: 32px 36px !important;
+  }
+}
