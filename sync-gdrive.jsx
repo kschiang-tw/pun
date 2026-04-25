@@ -7,7 +7,7 @@
 //  4. Add http://localhost:8000 as Authorized JavaScript origin
 //  5. Paste your client ID below
 
-const GDRIVE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+const GDRIVE_CLIENT_ID = '70246720877-srg60gr093bhfb081b0ol1f4nrn35h1b.apps.googleusercontent.com';
 const STORE_KEY = 'splittrip_v1';
 const SYNC_META_KEY = 'pun_sync_meta';
 const FILE_NAME = 'pun_data.json';
