@@ -172,7 +172,7 @@ function reducer(state, action) {
         [a.tripId]: { ...t, loans: (t.loans || []).filter(l => l.id !== a.id) } } };
     }
     case 'RESET':
-      return DEFAULT_STATE();
+      return { activeTripId: null, trips: {} };
     default:
       return state;
   }

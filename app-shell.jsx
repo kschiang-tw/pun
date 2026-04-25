@@ -140,7 +140,7 @@ function HomeScreen({ go }) {
 
       {trips.length > 0 && (
         <div style={{ padding: '20px', textAlign: 'center' }}>
-          <button onClick={() => { if (confirm('清除所有資料並還原示範旅程？')) dispatch({ type: 'RESET' }); }}
+          <button onClick={() => { if (confirm('清除所有旅程資料？此操作無法復原。')) dispatch({ type: 'RESET' }); }}
             style={{ border: 0, background: 'transparent', color: 'var(--ink-3)', fontSize: 11, cursor: 'pointer' }}>
             重設示範資料
           </button>

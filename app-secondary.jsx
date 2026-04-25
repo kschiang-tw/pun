@@ -320,10 +320,26 @@ function RatesScreen({ go, tripId }) {
 
       <div style={{ padding:'20px 16px 0' }}>
         <div className="t-cap" style={{ marginBottom:8, paddingLeft:4 }}>加入幣別</div>
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-          {ALL.filter(c => !trip.currencies.includes(c)).map(c => (
+        <div style={{ borderRadius:'var(--r-md)', overflow:'hidden', border:'0.5px solid var(--hairline)' }}>
+          {ALL.filter(c => !trip.currencies.includes(c)).map((c, i, arr) => (
             <button key={c} onClick={() => dispatch({ type:'TOGGLE_CCY', tripId, ccy: c })}
-              className="chip" style={{ fontSize:12, padding:'5px 11px', cursor:'pointer', border:0 }}>+ {c}</button>
+              style={{
+                width:'100%', display:'flex', alignItems:'center', gap:12,
+                padding:'11px 14px',
+                border:0, borderBottom: i < arr.length-1 ? '0.5px solid var(--hairline)' : 0,
+                background:'var(--surface)', cursor:'pointer', textAlign:'left', fontFamily:'inherit',
+              }}>
+              <div style={{
+                width:42, height:26, borderRadius:6, background:'var(--bg-2)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:10, fontWeight:600, letterSpacing:0.4, color:'var(--ink-2)', flexShrink:0,
+              }}>{c}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <span style={{ fontSize:14, fontWeight:500, color:'var(--ink)' }}>{c}</span>
+                <span style={{ fontSize:12, color:'var(--ink-3)', marginLeft:8 }}>{CCY_NAME[c]}</span>
+              </div>
+              <span style={{ color:'var(--ink-4)', fontSize:18, lineHeight:1, flexShrink:0 }}>+</span>
+            </button>
           ))}
         </div>
       </div>
