@@ -163,7 +163,7 @@ function HomeScreen({ go }) {
         }}>
           <div style={{ width: 32, height: 4, borderRadius: 999, background: 'var(--ink-4)' }}/>
           <div style={{ fontSize: 9, color: 'var(--ink-3)', letterSpacing: 0.4 }}>
-            v1.0.0 · <em>pun</em> © 2026 kschiang-tw
+            v{window.APP_VERSION} · <em>pun</em> © 2026 kschiang-tw
           </div>
         </button>
       </div>
@@ -185,7 +185,7 @@ function AboutSheet({ onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, fontStyle: 'italic', letterSpacing: -0.3 }}>pun</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>旅行分帳 · v1.0.0</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>旅行分帳 · v{window.APP_VERSION}</div>
           </div>
           <button onClick={onClose} style={{ border: 0, background: 'var(--surface)', color: 'var(--ink-2)', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
