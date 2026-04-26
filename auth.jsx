@@ -8,12 +8,10 @@ function LoginScreen() {
   const [phase, setPhase] = React.useState('idle'); // idle | sending | sent | error
   const [err,   setErr]   = React.useState('');
 
-  // iOS Safari (including PWA) cannot complete the OAuth redirect flow reliably —
-  // sessionStorage on firebaseapp.com is inaccessible, causing a redirect loop.
-  // On iOS, hide Google Sign-In and guide users to email link instead.
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // Only PWA standalone mode (added to home screen) cannot use signInWithPopup.
+  // Regular iOS Safari and all desktop browsers support popup fine.
   const isPWA = window.navigator.standalone === true;
-  const googleUnavailable = isIOS || isPWA;
+  const googleUnavailable = isPWA;
 
   const actionUrl = location.origin + location.pathname + location.search;
 
@@ -92,7 +90,7 @@ function LoginScreen() {
                 background: 'var(--surface)', border: '0.5px solid var(--hairline)',
                 fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6, textAlign: 'center',
               }}>
-                📱 iOS 上請使用下方 <b>Email 連結</b> 登入
+                🏠 加到主畫面後不支援 Google 彈窗<br/>請使用下方 <b>Email 連結</b> 登入
               </div>
             ) : (
               <button onClick={googleSignIn} style={{
