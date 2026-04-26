@@ -1,46 +1,6 @@
-// auth.jsx — Firebase Auth: Google Sign-In + Email Link (passwordless)
+// auth.jsx — Login Screen UI (auth state is managed by store.jsx / StoreProvider)
 
 const EMAIL_KEY = 'pun_signin_email';
-
-// ── Auth Context ─────────────────────────────────────────────────────────────
-const AuthCtx = React.createContext({ user: null, authLoading: true });
-
-function AuthProvider({ children }) {
-  const [user, setUser]           = React.useState(null);
-  const [authLoading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const auth = firebase.auth();
-
-    // ── Handle email link on page load ──────────────────────────────────────
-    if (auth.isSignInWithEmailLink(location.href)) {
-      let email = localStorage.getItem(EMAIL_KEY);
-      if (!email) email = window.prompt('請輸入您的 email 地址以確認身份：');
-      if (email) {
-        auth.signInWithEmailLink(email, location.href)
-          .then(() => {
-            localStorage.removeItem(EMAIL_KEY);
-            // Strip Firebase params from URL, keep ?invite= if present
-            const inv = new URLSearchParams(location.search).get('invite');
-            history.replaceState({}, '', location.pathname + (inv ? `?invite=${inv}` : ''));
-          })
-          .catch(e => console.error('[Auth] email link sign-in:', e));
-      }
-    }
-
-    return auth.onAuthStateChanged(u => {
-      setUser(u || null);
-      setLoading(false);
-    });
-  }, []);
-
-  return <AuthCtx.Provider value={{ user, authLoading }}>{children}</AuthCtx.Provider>;
-}
-
-function useAuth() { return React.useContext(AuthCtx); }
-
-window.AuthProvider = AuthProvider;
-window.useAuth = useAuth;
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen() {

@@ -3,7 +3,6 @@
 function TripScreen({ go, tripId }) {
   const trip = useTrip(tripId);
   const [, dispatch] = useStore();
-  const { user } = useAuth();
   const [showMenu,   setShowMenu]   = React.useState(false);
   const [showInvite, setShowInvite] = React.useState(false);
   if (!trip) return null;
@@ -164,17 +163,14 @@ function TripScreen({ go, tripId }) {
         }}><Icon.plus width={26} height={26}/></button>
       </div>
 
-      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go} user={user}
+      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go}
         onClose={() => setShowMenu(false)} onInvite={() => setShowInvite(true)}/>}
       {showInvite && <InviteSheet tripId={trip.id} onClose={() => setShowInvite(false)}/>}
     </div>
   );
 }
 
-function TripMenu({ trip, dispatch, go, onClose, onInvite, user }) {
-  const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', lastSynced: null });
-  React.useEffect(() => GDriveSync.subscribe(setSyncStatus), []);
-
+function TripMenu({ trip, dispatch, go, onClose, onInvite }) {
   const menuItem = (label, icon, onClick, danger) => (
     <button onClick={() => { onClose(); onClick(); }} style={{
       width: '100%', textAlign: 'left', border: 0, background: 'transparent',
@@ -201,7 +197,7 @@ function TripMenu({ trip, dispatch, go, onClose, onInvite, user }) {
         </div>
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '0 20px 6px' }}/>
 
-        {trip.ownerId === user?.uid && menuItem('邀請旅伴', (
+        {menuItem('邀請旅伴', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
             strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -210,27 +206,12 @@ function TripMenu({ trip, dispatch, go, onClose, onInvite, user }) {
           </svg>
         ), () => { onClose(); onInvite(); })}
 
-        {menuItem('雲端同步', (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 0 9"/>
-            <path d="M12 22V13"/>
-            <path d="m8 17 4-4 4 4"/>
-          </svg>
-        ), () => GDriveSync.requestSync())}
-
         {menuItem('刪除旅程', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
           </svg>
         ), () => { if (confirm('刪除此旅程？')) { dispatch({ type: 'DELETE_TRIP', id: trip.id }); go('home'); } }, true)}
-
-        <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '6px 20px 0' }}/>
-        <div style={{ padding: '10px 20px 0', fontSize: 10, color: 'var(--ink-3)', letterSpacing: 0.3 }}>
-          最後同步時間：{syncStatus.lastSynced
-            ? syncStatus.lastSynced.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
-            : '尚未同步'}
-        </div>
       </div>
     </div>
   );
