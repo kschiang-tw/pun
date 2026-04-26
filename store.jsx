@@ -42,6 +42,15 @@ function removeLocalId(id) {
   } catch {}
 }
 
+// ── "Returning user" flag — once set, never seed demo again ──────────────────
+const EVER_HAD_TRIPS_KEY = 'pun_ever_had_trips';
+function markEverHadTrips() {
+  try { localStorage.setItem(EVER_HAD_TRIPS_KEY, '1'); } catch {}
+}
+function everHadTrips() {
+  try { return !!localStorage.getItem(EVER_HAD_TRIPS_KEY); } catch { return false; }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -341,7 +350,6 @@ function StoreProvider({ children }) {
               const doc = await _db.collection('trips').doc(id).get();
               if (!doc.exists) { removeLocalId(id); continue; }
               const data = doc.data();
-              // Fix missing ownerId so future queries find it
               if (!data.ownerId) {
                 await _db.collection('trips').doc(id).update({ ownerId: user.uid })
                   .catch(console.warn);
@@ -351,8 +359,11 @@ function StoreProvider({ children }) {
             } catch (e) { console.warn('[Recovery]', id, e); }
           }
 
-          // ── 3. Seed demo if still no trips ───────────────────────────────────
-          if (Object.keys(loaded).length === 0) {
+          // ── 3. Mark returning user if any trips found ─────────────────────────
+          if (Object.keys(loaded).length > 0) markEverHadTrips();
+
+          // ── 4. Seed demo only for brand-new users ─────────────────────────────
+          if (Object.keys(loaded).length === 0 && !everHadTrips()) {
             const demo = makeDemoTrip(user.uid);
             try {
               _db.collection('trips').doc(demo.id).set({
@@ -404,6 +415,7 @@ function StoreProvider({ children }) {
       const currJSON = JSON.stringify(trip);
       if (prevJSON === currJSON) return;               // unchanged
       registerLocalId(id);   // track so we can recover if ownerId is missing
+      if (!trip.isDemo) markEverHadTrips(); // returning user flag
       try {
         _db.collection('trips').doc(id).set({
           ...trip,
