@@ -179,6 +179,26 @@ function reducer(state, action) {
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, loans: (t.loans || []).filter(l => l.id !== a.id) } } };
     }
+    case 'SET_SHARE_ID': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      return { ...state, trips: { ...state.trips, [a.tripId]: { ...t, shareId: a.shareId } } };
+    }
+    case 'FIREBASE_UPDATE_TRIP': {
+      const existing = state.trips[a.trip.id]; if (!existing) return state;
+      // Preserve local isMe flag across remote updates
+      const meId = existing.members?.find(m => m.isMe)?.id;
+      const members = (a.trip.members || existing.members).map(m => ({
+        ...m, isMe: m.id === meId,
+      }));
+      return { ...state, trips: { ...state.trips, [a.trip.id]: { ...a.trip, members } } };
+    }
+    case 'JOIN_TRIP': {
+      if (state.trips[a.trip.id]) {
+        // Already have it — just update
+        return { ...state, trips: { ...state.trips, [a.trip.id]: a.trip } };
+      }
+      return { ...state, trips: { ...state.trips, [a.trip.id]: a.trip } };
+    }
     case 'RESET':
       return { activeTripId: null, trips: {} };
     default:

@@ -16,6 +16,12 @@ function AppShell() {
     window.scrollTo(0, 0);
   };
 
+  // Handle ?join=SHAREID from shared links
+  const joinCode = React.useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    return p.get('join') || '';
+  }, []);
+
   let view;
   switch (route.name) {
     case 'home':      view = <HomeScreen go={go}/>; break;
@@ -39,7 +45,13 @@ function AppShell() {
       color: 'var(--ink)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
     }}>
+      <FirebaseBridge/>
       {view}
+      {joinCode && route.name === 'home' && (
+        <JoinSheet initialCode={joinCode} onClose={() => {
+          history.replaceState(null, '', location.pathname);
+        }}/>
+      )}
     </div>
   );
 }
@@ -50,6 +62,7 @@ function HomeScreen({ go }) {
   const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
   const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', lastSynced: null });
   const [showAbout, setShowAbout] = React.useState(false);
+  const [showJoin, setShowJoin] = React.useState(false);
   React.useEffect(() => GDriveSync.subscribe(setSyncStatus), []);
 
   return (
@@ -60,6 +73,21 @@ function HomeScreen({ go }) {
           <div className="t-display" style={{ fontSize: 34 }}>旅程</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <SyncButton/>
+            <button onClick={() => setShowJoin(true)}
+              title="加入共享旅程"
+              style={{
+                width: 36, height: 36, borderRadius: '50%', border: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', background: 'var(--surface)', color: 'var(--ink-2)',
+              }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/>
+                <line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+            </button>
             <button onClick={() => go('create')}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 0,
@@ -169,6 +197,7 @@ function HomeScreen({ go }) {
       </div>
 
       {showAbout && <AboutSheet onClose={() => setShowAbout(false)}/>}
+      {showJoin && <JoinSheet onClose={() => setShowJoin(false)}/>}
     </div>
   );
 }
