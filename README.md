@@ -2,7 +2,7 @@
 
 Travel expense splitting app for groups — multi-currency, offline-ready PWA.
 
-## 💡 Naming Strategy / 命名由來
+## Naming Strategy / 命名由來
 
 The name **"Pun"** comes from the Taiwanese Romanization (Tâi-lô) of the word **「分」 (pun)**, which means "to share" or "to split."
 
