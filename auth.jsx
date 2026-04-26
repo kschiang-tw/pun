@@ -105,6 +105,18 @@ function LoginScreen() {
         <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 6, letterSpacing: 0.3 }}>
           旅行分帳
         </div>
+        <div style={{ marginTop: 16, maxWidth: 260, textAlign: 'left' }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: 0.2, lineHeight: 1.6 }}>
+            <span style={{ fontStyle: 'italic', fontWeight: 700 }}>分</span>
+            {' '}
+            <span style={{ color: 'var(--ink-4)' }}>/pun/</span>
+            {' '}
+            <span style={{ fontSize: 10, color: 'var(--ink-4)', letterSpacing: 0.8 }}>v.</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.7, marginTop: 2 }}>
+            The Taiwanese word for "share" and "split". An offline-ready, multi-currency app that takes the math out of your group travels.
+          </div>
+        </div>
       </div>
 
       <div style={{ width: '100%', maxWidth: 340 }}>

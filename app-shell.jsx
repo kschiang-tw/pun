@@ -53,9 +53,9 @@ function AppShell() {
           color: 'var(--ink-3)', letterSpacing: -1 }}>pun</div>
         <div style={{ marginTop: 16, maxWidth: 260, textAlign: 'left' }}>
           <div style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: 0.2, lineHeight: 1.6 }}>
-            <span style={{ fontStyle: 'italic', fontWeight: 700 }}>pun</span>
+            <span style={{ fontStyle: 'italic', fontWeight: 700 }}>分</span>
             {' '}
-            <span style={{ color: 'var(--ink-4)' }}>/pʌn/</span>
+            <span style={{ color: 'var(--ink-4)' }}>/pun/</span>
             {' '}
             <span style={{ fontSize: 10, color: 'var(--ink-4)', letterSpacing: 0.8 }}>v.</span>
           </div>
