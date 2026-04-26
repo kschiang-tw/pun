@@ -1,7 +1,45 @@
-// store.jsx — App state with reducer + Context + localStorage persistence
+// store.jsx — App state backed by Firestore rooms (real-time collaborative)
 
-const STORE_KEY = 'splittrip_v1';
+// ── Firebase config ──────────────────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            'AIzaSyAJYRlb76FNQokETBQ9lfg9aX9G9pbQyS0',
+  authDomain:        'pun-github-5329b.firebaseapp.com',
+  projectId:         'pun-github-5329b',
+  storageBucket:     'pun-github-5329b.firebasestorage.app',
+  messagingSenderId: '1000087863029',
+  appId:             '1:1000087863029:web:9a4091166d3a0087904fbc',
+};
 
+// ── Device fingerprint (prevents echo-back of own writes) ───────────────────
+const DEVICE_ID = (() => {
+  const k = 'pun_device_id';
+  return localStorage.getItem(k) || (() => {
+    const id = Math.random().toString(36).slice(2, 10);
+    localStorage.setItem(k, id);
+    return id;
+  })();
+})();
+
+// ── Room ID — read from ?room= URL, or generate + push to URL ───────────────
+const ROOM_KEY = 'pun_room_id';
+function initRoomId() {
+  const fromUrl = new URLSearchParams(location.search).get('room');
+  if (fromUrl) {
+    localStorage.setItem(ROOM_KEY, fromUrl.toUpperCase());
+    return fromUrl.toUpperCase();
+  }
+  const stored = localStorage.getItem(ROOM_KEY);
+  if (stored) {
+    history.replaceState({}, '', `${location.pathname}?room=${stored}`);
+    return stored;
+  }
+  const fresh = Math.random().toString(36).slice(2, 8).toUpperCase();
+  localStorage.setItem(ROOM_KEY, fresh);
+  history.pushState({}, '', `${location.pathname}?room=${fresh}`);
+  return fresh;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function mk(title, cat, paidBy, amount, ccy, date, mode, splitData = {}, note = '') {
@@ -50,37 +88,14 @@ const DEFAULT_STATE = () => ({
   },
 });
 
-function migrate(s) {
-  // v2.0.1 → rename demo trip title
-  if (s.trips?.demo?.title === 'Denmark · Sweden') {
-    s.trips.demo.title = '範例：Denmark・Sweden';
-  }
-  return s;
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) {
-      const s = DEFAULT_STATE();
-      s.activeTripId = 'demo';
-      return s;
-    }
-    return migrate(JSON.parse(raw));
-  } catch (e) {
-    const s = DEFAULT_STATE();
-    s.activeTripId = 'demo';
-    return s;
-  }
-}
-
-function saveState(s) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch {}
-}
-
+// ── Reducer ───────────────────────────────────────────────────────────────────
 function reducer(state, action) {
   const a = action;
   switch (a.type) {
+
+    // Firestore → local: replace entire state
+    case 'SET_STATE': return { ...a.state };
+
     case 'CREATE_TRIP': {
       const id = uid();
       const trip = {
@@ -179,26 +194,6 @@ function reducer(state, action) {
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, loans: (t.loans || []).filter(l => l.id !== a.id) } } };
     }
-    case 'SET_SHARE_ID': {
-      const t = state.trips[a.tripId]; if (!t) return state;
-      return { ...state, trips: { ...state.trips, [a.tripId]: { ...t, shareId: a.shareId } } };
-    }
-    case 'FIREBASE_UPDATE_TRIP': {
-      const existing = state.trips[a.trip.id]; if (!existing) return state;
-      // Preserve local isMe flag across remote updates
-      const meId = existing.members?.find(m => m.isMe)?.id;
-      const members = (a.trip.members || existing.members).map(m => ({
-        ...m, isMe: m.id === meId,
-      }));
-      return { ...state, trips: { ...state.trips, [a.trip.id]: { ...a.trip, members } } };
-    }
-    case 'JOIN_TRIP': {
-      if (state.trips[a.trip.id]) {
-        // Already have it — just update
-        return { ...state, trips: { ...state.trips, [a.trip.id]: a.trip } };
-      }
-      return { ...state, trips: { ...state.trips, [a.trip.id]: a.trip } };
-    }
     case 'RESET':
       return { activeTripId: null, trips: {} };
     default:
@@ -206,20 +201,118 @@ function reducer(state, action) {
   }
 }
 
+// ── Firestore StoreProvider ───────────────────────────────────────────────────
 const StoreCtx = React.createContext(null);
+const RoomCtx  = React.createContext({ roomId: '', status: 'connecting' });
 
 function StoreProvider({ children }) {
-  const [state, dispatch] = React.useReducer(reducer, null, loadState);
-  React.useEffect(() => { saveState(state); }, [state]);
-  return <StoreCtx.Provider value={[state, dispatch]}>{children}</StoreCtx.Provider>;
+  const [state, localDispatch] = React.useReducer(reducer, { activeTripId: null, trips: {} });
+  const [roomId]      = React.useState(initRoomId);
+  const [syncStatus, setSyncStatus] = React.useState('connecting');
+  const dbRef    = React.useRef(null);
+  const lastJSON = React.useRef(null);   // tracks last Firestore snapshot to avoid echo
+
+  React.useEffect(() => {
+    let db;
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+      // Offline persistence (tabs share cache)
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      dbRef.current = db;
+    } catch (e) {
+      console.error('[Firestore] init failed:', e);
+      _fallbackLocal(localDispatch);
+      setSyncStatus('offline');
+      return;
+    }
+
+    const doc = db.collection('rooms').doc(roomId);
+
+    // ── Real-time listener ──────────────────────────────────────────────────
+    const unsub = doc.onSnapshot(snap => {
+      if (!snap.exists) return;
+      const { _by, _at, ...appState } = snap.data();
+      if (_by === DEVICE_ID) return;             // own write — skip
+      lastJSON.current = JSON.stringify(appState);
+      localDispatch({ type: 'SET_STATE', state: appState });
+    }, err => {
+      console.warn('[Firestore] listener error:', err);
+      setSyncStatus('error');
+    });
+
+    // ── Initial load or create room ─────────────────────────────────────────
+    doc.get().then(snap => {
+      if (snap.exists) {
+        const { _by, _at, ...appState } = snap.data();
+        lastJSON.current = JSON.stringify(appState);
+        localDispatch({ type: 'SET_STATE', state: appState });
+      } else {
+        // Brand-new room — seed with demo data
+        const init = DEFAULT_STATE();
+        init.activeTripId = 'demo';
+        lastJSON.current = JSON.stringify({ activeTripId: init.activeTripId, trips: init.trips });
+        doc.set({ ...init, _by: DEVICE_ID, _at: firebase.firestore.FieldValue.serverTimestamp() });
+        localDispatch({ type: 'SET_STATE', state: init });
+      }
+      setSyncStatus('ready');
+    }).catch(e => {
+      console.warn('[Firestore] initial get failed:', e);
+      _fallbackLocal(localDispatch);
+      setSyncStatus('ready');
+    });
+
+    return () => unsub();
+  }, [roomId]);
+
+  // ── Write local changes → Firestore ────────────────────────────────────────
+  React.useEffect(() => {
+    if (syncStatus !== 'ready' || !dbRef.current) return;
+    const { activeTripId, trips } = state;
+    const json = JSON.stringify({ activeTripId, trips });
+    if (json === lastJSON.current) return;       // came from Firestore, skip
+    lastJSON.current = json;
+    // Local backup (for offline fallback)
+    try { localStorage.setItem('pun_backup', json); } catch {}
+    // Push to Firestore
+    dbRef.current.collection('rooms').doc(roomId).set({
+      activeTripId, trips,
+      _by: DEVICE_ID,
+      _at: firebase.firestore.FieldValue.serverTimestamp(),
+    }).catch(e => console.warn('[Firestore] write error:', e));
+  }, [state, syncStatus, roomId]);
+
+  const dispatch = React.useCallback(a => localDispatch(a), []);
+
+  return (
+    <RoomCtx.Provider value={{ roomId, status: syncStatus }}>
+      <StoreCtx.Provider value={[state, dispatch]}>
+        {children}
+      </StoreCtx.Provider>
+    </RoomCtx.Provider>
+  );
 }
 
+function _fallbackLocal(dispatch) {
+  try {
+    const raw = localStorage.getItem('pun_backup');
+    const s = raw ? JSON.parse(raw) : (() => { const d = DEFAULT_STATE(); d.activeTripId = 'demo'; return d; })();
+    dispatch({ type: 'SET_STATE', state: s });
+  } catch {
+    const d = DEFAULT_STATE(); d.activeTripId = 'demo';
+    dispatch({ type: 'SET_STATE', state: d });
+  }
+}
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 function useStore() { return React.useContext(StoreCtx); }
 function useTrip(id) {
   const [s] = useStore();
   return s.trips[id || s.activeTripId] || null;
 }
+function useRoom() { return React.useContext(RoomCtx); }
 
+// ── Formatters ────────────────────────────────────────────────────────────────
 const CCY_SYMBOL = { TWD:'NT$', USD:'$', EUR:'€', JPY:'¥', DKK:'kr', SEK:'kr', NOK:'kr', THB:'฿', GBP:'£', KRW:'₩', CNY:'¥', HKD:'HK$', SGD:'S$' };
 const CCY_PREFIX = ['TWD','USD','EUR','GBP','HKD','SGD','THB','JPY','CNY','KRW'];
 
@@ -232,9 +325,10 @@ function fmtMoney(n, ccy) {
 function fmtBase(n, trip) { return fmtMoney(n, trip.baseCurrency); }
 
 window.StoreProvider = StoreProvider;
-window.useStore = useStore;
-window.useTrip = useTrip;
-window.fmtMoney = fmtMoney;
-window.fmtBase = fmtBase;
-window.CCY_SYMBOL = CCY_SYMBOL;
-window.uid = uid;
+window.useStore      = useStore;
+window.useTrip       = useTrip;
+window.useRoom       = useRoom;
+window.fmtMoney      = fmtMoney;
+window.fmtBase       = fmtBase;
+window.CCY_SYMBOL    = CCY_SYMBOL;
+window.uid           = uid;

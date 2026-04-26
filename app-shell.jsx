@@ -16,12 +16,6 @@ function AppShell() {
     window.scrollTo(0, 0);
   };
 
-  // Handle ?join=SHAREID from shared links
-  const joinCode = React.useMemo(() => {
-    const p = new URLSearchParams(location.search);
-    return p.get('join') || '';
-  }, []);
-
   let view;
   switch (route.name) {
     case 'home':      view = <HomeScreen go={go}/>; break;
@@ -45,13 +39,7 @@ function AppShell() {
       color: 'var(--ink)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
     }}>
-      <FirebaseBridge/>
       {view}
-      {joinCode && route.name === 'home' && (
-        <JoinSheet initialCode={joinCode} onClose={() => {
-          history.replaceState(null, '', location.pathname);
-        }}/>
-      )}
     </div>
   );
 }
@@ -59,11 +47,24 @@ function AppShell() {
 // ─── Home — trip list ────────────────────────────────────────
 function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
+  const { roomId, status } = useRoom();
   const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
-  const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', lastSynced: null });
   const [showAbout, setShowAbout] = React.useState(false);
-  const [showJoin, setShowJoin] = React.useState(false);
-  React.useEffect(() => GDriveSync.subscribe(setSyncStatus), []);
+  const [copied, setCopied] = React.useState(false);
+
+  function copyInviteLink() {
+    const url = location.href; // already contains ?room=ID
+    if (navigator.share) {
+      navigator.share({ title: 'pun · 旅行分帳', text: '加入我的旅程共同記帳', url });
+    } else {
+      navigator.clipboard?.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  // Sync status dot colour
+  const dotColor = status === 'ready' ? 'var(--pos)' : status === 'error' ? 'var(--neg)' : '#aaa';
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -72,22 +73,28 @@ function HomeScreen({ go }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div className="t-display" style={{ fontSize: 34 }}>旅程</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <SyncButton/>
-            <button onClick={() => setShowJoin(true)}
-              title="加入共享旅程"
+            {/* Copy invite link */}
+            <button onClick={copyInviteLink} title="複製邀請連結"
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', background: 'var(--surface)', color: 'var(--ink-2)',
+                cursor: 'pointer', background: 'var(--surface)',
+                color: copied ? 'var(--pos)' : 'var(--ink-2)',
               }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <line x1="19" y1="8" x2="19" y2="14"/>
-                <line x1="22" y1="11" x2="16" y2="11"/>
-              </svg>
+              {copied ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              )}
             </button>
+            {/* New trip */}
             <button onClick={() => go('create')}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 0,
@@ -176,10 +183,13 @@ function HomeScreen({ go }) {
       )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5 }}>
-        <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9, color: 'var(--ink-4)', letterSpacing: 0.3, background: 'var(--bg)' }}>
-          最後同步時間：{syncStatus.lastSynced
-            ? syncStatus.lastSynced.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
-            : '尚未同步'}
+        {/* Room ID + sync status bar */}
+        <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9, color: 'var(--ink-4)', letterSpacing: 0.3, background: 'var(--bg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor, display: 'inline-block', flexShrink: 0 }}/>
+          房間：{roomId}
+          {status === 'connecting' && ' · 連線中…'}
+          {status === 'error' && ' · 連線失敗'}
+          {status === 'offline' && ' · 離線模式'}
         </div>
         <button onClick={() => setShowAbout(true)} style={{
           width: '100%', border: 0, cursor: 'pointer', fontFamily: 'inherit',
@@ -197,7 +207,6 @@ function HomeScreen({ go }) {
       </div>
 
       {showAbout && <AboutSheet onClose={() => setShowAbout(false)}/>}
-      {showJoin && <JoinSheet onClose={() => setShowJoin(false)}/>}
     </div>
   );
 }
@@ -238,7 +247,7 @@ function AboutSheet({ onClose }) {
 
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '18px 0 14px' }}/>
         <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.6 }}>
-          本應用程式使用 React · Google Drive API · ExchangeRate-API
+          本應用程式使用 React · Firebase Firestore · ExchangeRate-API
         </div>
       </div>
     </div>

@@ -4,7 +4,6 @@ function TripScreen({ go, tripId }) {
   const trip = useTrip(tripId);
   const [, dispatch] = useStore();
   const [showMenu, setShowMenu] = React.useState(false);
-  const [showShare, setShowShare] = React.useState(false);
   if (!trip) return null;
 
   const tots = ENGINE.totals(trip);
@@ -163,14 +162,12 @@ function TripScreen({ go, tripId }) {
         }}><Icon.plus width={26} height={26}/></button>
       </div>
 
-      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go}
-        onClose={() => setShowMenu(false)} onShare={() => setShowShare(true)}/>}
-      {showShare && <ShareSheet trip={trip} onClose={() => setShowShare(false)}/>}
+      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go} onClose={() => setShowMenu(false)}/>}
     </div>
   );
 }
 
-function TripMenu({ trip, dispatch, go, onClose, onShare }) {
+function TripMenu({ trip, dispatch, go, onClose }) {
   const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', lastSynced: null });
   React.useEffect(() => GDriveSync.subscribe(setSyncStatus), []);
 
@@ -199,14 +196,6 @@ function TripMenu({ trip, dispatch, go, onClose, onShare }) {
           {trip.title}
         </div>
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '0 20px 6px' }}/>
-
-        {menuItem(trip.shareId ? '共享中 · 管理' : '即時共享旅程', (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-          </svg>
-        ), () => { onClose(); onShare(); })}
 
         {menuItem('雲端同步', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
