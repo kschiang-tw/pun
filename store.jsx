@@ -271,6 +271,8 @@ function StoreProvider({ children }) {
   const prevRef   = React.useRef({});        // tracks which trip IDs exist in Firestore (for new-trip detection + deletion)
   const remoteIds = React.useRef(new Set()); // trip IDs mid-remote-update
   const dirtyIds  = React.useRef(new Set()); // trip IDs modified by user actions (need Firestore write)
+  const stateRef  = React.useRef(state);     // always points to latest state (for use inside async callbacks)
+  React.useEffect(() => { stateRef.current = state; });
 
   // ── Auth listener + email link handling ──────────────────────────────────
   React.useEffect(() => {
@@ -534,7 +536,28 @@ function StoreProvider({ children }) {
     // Trip will appear via onSnapshot
   }
 
-  const tripActions = { shareTrip, joinTripByCode };
+  // ── Force backup: write all owned trips to Firestore immediately ─────────
+  async function forceBackup() {
+    if (!user) throw new Error('請先登入');
+    const trips = Object.values(stateRef.current.trips);
+    let written = 0;
+    for (const trip of trips) {
+      try {
+        await _db.collection('trips').doc(trip.id).set({
+          ...trip, _by: DEVICE_ID,
+          _at: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        registerLocalId(trip.id);
+        written++;
+      } catch (e) {
+        console.warn('[forceBackup] trip', trip.id, e);
+      }
+    }
+    console.log('[pun] forceBackup wrote', written, 'trips');
+    return written;
+  }
+
+  const tripActions = { shareTrip, joinTripByCode, forceBackup };
 
   return (
     <AuthCtx.Provider value={{ user, authLoading, lastSyncAt }}>

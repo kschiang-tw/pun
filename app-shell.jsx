@@ -258,10 +258,40 @@ function HomeScreen({ go }) {
 
 function AboutSheet({ onClose }) {
   const { user } = useAuth();
+  const { forceBackup } = useTripActions();
+  const [updatePhase, setUpdatePhase] = React.useState('idle'); // idle | syncing | done | error
+  const [updateErr,   setUpdateErr]   = React.useState('');
+
   const signOut = () => {
     if (confirm('確定要登出？')) {
       firebase.auth().signOut().catch(console.error);
       onClose();
+    }
+  };
+
+  const handleBackupAndUpdate = async () => {
+    setUpdatePhase('syncing');
+    setUpdateErr('');
+    try {
+      // 1. Force-write all trips to Firestore
+      await forceBackup();
+      // 2. Clear all SW caches so next load fetches fresh files
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      // 3. Tell SW to check for updates
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+      }
+      setUpdatePhase('done');
+      // 4. Reload after a brief moment so user sees the success state
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      console.error('[backup+update]', e);
+      setUpdateErr(e.message || '發生錯誤');
+      setUpdatePhase('error');
     }
   };
   return (
@@ -301,6 +331,31 @@ function AboutSheet({ onClose }) {
         <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.6, marginBottom: 16 }}>
           本應用程式使用 React · Firebase Firestore · ExchangeRate-API
         </div>
+
+        {/* Backup + Update */}
+        <button
+          onClick={handleBackupAndUpdate}
+          disabled={updatePhase === 'syncing' || updatePhase === 'done'}
+          style={{
+            width: '100%', border: '0.5px solid var(--hairline)',
+            background: updatePhase === 'done' ? 'var(--surface)' : 'var(--ink)',
+            color: updatePhase === 'done' ? 'var(--pos)' : 'var(--bg)',
+            borderRadius: 12, padding: '13px 0', marginBottom: 10,
+            fontSize: 14, fontWeight: 600, cursor: updatePhase === 'syncing' ? 'default' : 'pointer',
+            fontFamily: 'inherit', opacity: updatePhase === 'syncing' ? 0.6 : 1,
+            transition: 'opacity 0.2s',
+          }}
+        >
+          {updatePhase === 'idle'    && '備份資料並更新到最新版本'}
+          {updatePhase === 'syncing' && '備份中…'}
+          {updatePhase === 'done'    && '✓ 備份完成，重新載入中…'}
+          {updatePhase === 'error'   && '重試備份並更新'}
+        </button>
+        {updatePhase === 'error' && (
+          <div style={{ fontSize: 11, color: 'var(--neg)', textAlign: 'center', marginBottom: 10 }}>
+            {updateErr}
+          </div>
+        )}
 
         {/* Account */}
         <div style={{ background: 'var(--surface)', borderRadius: 12, padding: '12px 14px',
