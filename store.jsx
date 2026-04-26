@@ -259,8 +259,12 @@ function StoreProvider({ children }) {
 
   // ── Auth listener + email link handling ──────────────────────────────────
   React.useEffect(() => {
-    // Handle Google redirect sign-in result (iOS/PWA flow)
-    _auth.getRedirectResult().catch(e => {
+    let unsubscribe = () => {};
+
+    // Must await redirect result before attaching onAuthStateChanged.
+    // Otherwise Firebase fires onAuthStateChanged(null) while the redirect is
+    // still being processed, causing a spurious flash of the login screen.
+    const redirectPromise = _auth.getRedirectResult().catch(e => {
       if (e.code !== 'auth/no-auth-event') console.warn('[Auth] redirect result:', e);
     });
 
@@ -277,10 +281,15 @@ function StoreProvider({ children }) {
           .catch(e => console.error('[Auth] email link:', e));
       }
     }
-    return _auth.onAuthStateChanged(u => {
-      setUser(u || null);
-      setAuthLoading(false);
+
+    redirectPromise.then(() => {
+      unsubscribe = _auth.onAuthStateChanged(u => {
+        setUser(u || null);
+        setAuthLoading(false);
+      });
     });
+
+    return () => unsubscribe();
   }, []);
 
   // ── Firestore subscriptions — reload when user changes ───────────────────
