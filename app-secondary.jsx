@@ -11,10 +11,12 @@ function CreateTripScreen({ go }) {
   const [endDate, setEndDate] = React.useState(inWeek);
   const [base, setBase] = React.useState('TWD');
   const [cover, setCover] = React.useState(0);
-  const [members, setMembers] = React.useState([{ name: 'You', isMe: true }, { name: '' }]);
+  const [members, setMembers] = React.useState([{ name: '', isMe: true }, { name: '' }]);
 
   const create = () => {
     if (!title.trim()) { alert('請輸入旅程名稱'); return; }
+    const meEntry = members.find(m => m.isMe);
+    if (!meEntry?.name.trim()) { alert('請輸入你的名字'); return; }
     const tints = ['sage','clay','stone','rose','plum'];
     const ms = members.filter(m => m.name.trim()).map((m, i) => ({
       id: m.isMe ? 'me' : uid(),
@@ -23,7 +25,6 @@ function CreateTripScreen({ go }) {
       tint: tints[i % tints.length],
       ...(m.isMe ? { isMe: true } : {}),  // never include isMe:undefined — Firestore throws on undefined values
     }));
-    if (!ms.some(m => m.isMe)) ms.unshift({ id:'me', name:'You', initial:'你', tint:'sage', isMe:true });
     const accessList = user ? [{
       uid: user.uid,
       email: user.email || '',
