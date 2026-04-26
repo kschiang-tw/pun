@@ -294,10 +294,14 @@ function StoreProvider({ children }) {
         setTimeout(() => {
           if (Object.keys(loaded).length === 0) {
             const demo = makeDemoTrip(user.uid);
-            _db.collection('trips').doc(demo.id).set({
-              ...demo, _by: DEVICE_ID,
-              _at: firebase.firestore.FieldValue.serverTimestamp(),
-            });
+            try {
+              _db.collection('trips').doc(demo.id).set({
+                ...demo, _by: DEVICE_ID,
+                _at: firebase.firestore.FieldValue.serverTimestamp(),
+              }).catch(e => console.warn('[Firestore] demo seed:', e));
+            } catch (e) {
+              console.warn('[Firestore] demo seed sync:', e);
+            }
             localDispatch({ type: 'SET_TRIP', trip: demo });
           }
           setTripsReady(true);
@@ -341,11 +345,15 @@ function StoreProvider({ children }) {
       const prevJSON = JSON.stringify(prev[id] || null);
       const currJSON = JSON.stringify(trip);
       if (prevJSON === currJSON) return;               // unchanged
-      _db.collection('trips').doc(id).set({
-        ...trip,
-        _by: DEVICE_ID,
-        _at: firebase.firestore.FieldValue.serverTimestamp(),
-      }).catch(e => console.warn('[Firestore] write:', e));
+      try {
+        _db.collection('trips').doc(id).set({
+          ...trip,
+          _by: DEVICE_ID,
+          _at: firebase.firestore.FieldValue.serverTimestamp(),
+        }).catch(e => console.warn('[Firestore] write:', e));
+      } catch (e) {
+        console.warn('[Firestore] write sync:', e);
+      }
     });
     // Handle deletions
     Object.keys(prev).forEach(id => {

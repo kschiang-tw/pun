@@ -47,7 +47,6 @@
 <script type="text/babel" src="app-screens.jsx"></script>
 <script type="text/babel" src="app-forms.jsx"></script>
 <script type="text/babel" src="app-secondary.jsx?v=4"></script>
-<script type="text/babel" src="sync-gdrive.jsx"></script>
 <script type="text/babel" src="sync-firebase.jsx"></script>
 <script type="text/babel" src="app-statement.jsx"></script>
 <script type="text/babel">
@@ -60,6 +59,24 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
   }
+  // Global error overlay — helps surface crashes that bypass the React error boundary
+  function _showErr(msg) {
+    var d = document.getElementById('_err_overlay');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = '_err_overlay';
+      d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#fee;border-top:2px solid #f66;padding:10px 14px;font-size:11px;color:#900;word-break:break-all;line-height:1.5;max-height:40vh;overflow:auto';
+      d.onclick = function(){d.remove()};
+      document.body.appendChild(d);
+    }
+    d.textContent += msg + '\n';
+  }
+  window.onerror = function(msg, src, line) {
+    _showErr('ERR: ' + msg + ' (' + (src||'').split('/').pop() + ':' + line + ')');
+  };
+  window.onunhandledrejection = function(e) {
+    _showErr('PROMISE: ' + (e.reason?.message || e.reason || e));
+  };
 </script>
 </body>
 </html>
