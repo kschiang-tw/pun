@@ -2,11 +2,22 @@
 
 ## 每次修改後的固定流程
 
-1. 更新 `version.js`（patch +1，例如 2.3.20 → 2.3.21）
-2. `git add` 所有修改的檔案（包含 `version.js`）
-3. `git commit` + `git push` 到 https://github.com/kschiang-tw/pun
+1. 更新 `version.js` 版號（規則如下）
+2. 更新 `CHANGELOG.md`，在最上方加入新版本的條目
+3. `git add` 所有修改的檔案（包含 `version.js` 和 `CHANGELOG.md`）
+4. `git commit` + `git push` 到 https://github.com/kschiang-tw/pun
 
 **不論是新功能、bug fix、還是小調整，都要執行這個流程。**
+
+## 版號規則（語意化版本）
+
+格式：`主版本.次版本.修訂號`（例如 `2.3.20`）
+
+| 情況 | 改哪一碼 | 範例 |
+|------|----------|------|
+| 修小 bug、微調樣式 | 修訂號 +1 | 2.3.20 → 2.3.21 |
+| 修較多內容、中型功能調整 | 次版本 +1，修訂號歸零 | 2.3.20 → 2.4.0 |
+| 新增全新功能 | 主版本 +1，其餘歸零 | 2.3.20 → 3.0.0 |
 
 ## 專案結構
 
