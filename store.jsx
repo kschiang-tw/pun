@@ -347,6 +347,8 @@ function StoreProvider({ children }) {
                 try {
                   await _db.collection('trips').doc(trip.id).set(patch, { merge: true });
                   loaded[trip.id] = true;
+                  const { _by: mb, _at: ma, _sid: ms, ...cleanMigration } = patch;
+                  prevRef.current = { ...prevRef.current, [trip.id]: cleanMigration };
                   localDispatch({ type: 'SET_TRIP', trip: patch });
                 } catch (e) { console.warn('[Migration]', e); }
               }
@@ -360,6 +362,7 @@ function StoreProvider({ children }) {
           const missing = localIds.filter(id => !loaded[id]);
           for (const id of missing) {
             try {
+              console.log('[pun] RECOVERY fetching:', id);
               const doc = await _db.collection('trips').doc(id).get();
               if (!doc.exists) { removeLocalId(id); continue; }
               const data = doc.data();
@@ -368,7 +371,12 @@ function StoreProvider({ children }) {
                   .catch(console.warn);
               }
               loaded[id] = true;
-              localDispatch({ type: 'SET_TRIP', trip: { id, ...data, ownerId: data.ownerId || user.uid } });
+              const tripData = { id, ...data, ownerId: data.ownerId || user.uid };
+              // Pre-populate prevRef so the write effect doesn't treat this recovered
+              // trip as "new local" and spuriously re-write it to Firestore.
+              const { _by, _at, _sid, ...cleanRecovery } = tripData;
+              prevRef.current = { ...prevRef.current, [id]: cleanRecovery };
+              localDispatch({ type: 'SET_TRIP', trip: tripData });
             } catch (e) { console.warn('[Recovery]', id, e); }
           }
 

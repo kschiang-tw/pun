@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.3.22 (2026-04-27)
+### 修正
+- 找到並修正 Nepal 行程消失的真正原因
+  - 當兩個 Firestore subscription（owned/shared）其中一個先 fire 空結果時，
+    800ms 計時到後 recovery 路徑（`getLocalIds()` → `doc.get()`）會把旅程撈進來
+  - Recovery 路徑呼叫了 `SET_TRIP` 但沒更新 `prevRef.current`
+  - 導致 write effect 看到 `prevNull: true` → 重寫 Firestore（WRITE 在 Firestore 事件之前）
+  - 修正：recovery / migration 路徑在 `localDispatch` 前也預先填 `prevRef.current`
+
 ## v2.3.21 (2026-04-27)
 ### 修正
 - 移除 `markReady` 重複呼叫 `applyChanges` 的問題
