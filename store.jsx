@@ -259,11 +259,6 @@ function StoreProvider({ children }) {
 
   // ── Auth listener + email link handling ──────────────────────────────────
   React.useEffect(() => {
-    // Handle Google redirect sign-in result (iOS/PWA flow)
-    _auth.getRedirectResult().catch(e => {
-      if (e.code !== 'auth/no-auth-event') console.warn('[Auth] redirect result:', e);
-    });
-
     if (_auth.isSignInWithEmailLink(location.href)) {
       let email = localStorage.getItem('pun_signin_email');
       if (!email) email = window.prompt('請輸入您的 email 地址以確認身份：');
