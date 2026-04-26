@@ -17,7 +17,7 @@ const DEFAULT_STATE = () => ({
   trips: {
     demo: {
       id: 'demo',
-      title: 'Denmark · Sweden',
+      title: '範例：Denmark・Sweden',
       subtitle: '哥本哈根 → 馬爾摩 → 斯德哥爾摩',
       startDate: '2026-06-12',
       endDate: '2026-06-27',
@@ -50,6 +50,14 @@ const DEFAULT_STATE = () => ({
   },
 });
 
+function migrate(s) {
+  // v2.0.1 → rename demo trip title
+  if (s.trips?.demo?.title === 'Denmark · Sweden') {
+    s.trips.demo.title = '範例：Denmark・Sweden';
+  }
+  return s;
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -58,7 +66,7 @@ function loadState() {
       s.activeTripId = 'demo';
       return s;
     }
-    return JSON.parse(raw);
+    return migrate(JSON.parse(raw));
   } catch (e) {
     const s = DEFAULT_STATE();
     s.activeTripId = 'demo';
