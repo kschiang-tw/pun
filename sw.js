@@ -1,5 +1,5 @@
 // sw.js — Service Worker for pun PWA
-const CACHE = 'pun-v9';
+const CACHE = 'pun-v10';
 
 // CDN scripts pinned to exact versions — pre-cache on install
 const CDN = [

@@ -230,6 +230,13 @@ function HomeScreen({ go }) {
 }
 
 function AboutSheet({ onClose }) {
+  const { user } = useAuth();
+  const signOut = () => {
+    if (confirm('確定要登出？')) {
+      firebase.auth().signOut().catch(console.error);
+      onClose();
+    }
+  };
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400 }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)' }}/>
@@ -264,8 +271,26 @@ function AboutSheet({ onClose }) {
         </div>
 
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '18px 0 14px' }}/>
-        <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.6 }}>
+        <div style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', lineHeight: 1.6, marginBottom: 16 }}>
           本應用程式使用 React · Firebase Firestore · ExchangeRate-API
+        </div>
+
+        {/* Account */}
+        <div style={{ background: 'var(--surface)', borderRadius: 12, padding: '12px 14px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-2)' }}>
+              {user?.displayName || user?.email || '已登入'}
+            </div>
+            {user?.displayName && (
+              <div style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>{user.email}</div>
+            )}
+          </div>
+          <button onClick={signOut} style={{
+            border: 0, background: 'transparent', color: 'var(--neg)',
+            fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            padding: '6px 10px', borderRadius: 8,
+          }}>登出</button>
         </div>
       </div>
     </div>
