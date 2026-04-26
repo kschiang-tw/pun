@@ -138,11 +138,11 @@ function HomeScreen({ go }) {
         })}
       </div>
 
-      {trips.length > 0 && (
+      {s.trips['demo'] && (
         <div style={{ padding: '20px', textAlign: 'center' }}>
-          <button onClick={() => { if (confirm('清除所有旅程資料？此操作無法復原。')) dispatch({ type: 'RESET' }); }}
+          <button onClick={() => { if (confirm('清除範例資料？')) dispatch({ type: 'DELETE_TRIP', id: 'demo' }); }}
             style={{ border: 0, background: 'transparent', color: 'var(--ink-3)', fontSize: 11, cursor: 'pointer' }}>
-            重設示範資料
+            清除範例資料
           </button>
         </div>
       )}
