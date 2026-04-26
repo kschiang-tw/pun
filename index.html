@@ -57,7 +57,11 @@
 </script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      // Force check for SW updates on every page load so new deployments
+      // are picked up immediately instead of waiting 24 hours.
+      reg.update();
+    });
   }
   // Global error overlay — helps surface crashes that bypass the React error boundary
   function _showErr(msg) {
