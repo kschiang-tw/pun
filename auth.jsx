@@ -107,7 +107,7 @@ function LoginScreen() {
         </div>
         <div style={{ marginTop: 16, maxWidth: 260, textAlign: 'left' }}>
           <div style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: 0.2, lineHeight: 1.6 }}>
-            <span style={{ fontStyle: 'italic', fontWeight: 700 }}>分</span>
+            <span style={{ fontWeight: 700 }}>分</span>
             {' '}
             <span style={{ color: 'var(--ink-4)' }}>/pun/</span>
             {' '}
