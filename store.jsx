@@ -283,6 +283,7 @@ function StoreProvider({ children }) {
   // ── Firestore subscriptions — reload when user changes ───────────────────
   React.useEffect(() => {
     if (!user) {
+      console.log('[pun] RESET (user signed out / null)');
       localDispatch({ type: 'RESET' });
       setTripsReady(false);
       prevRef.current = {};
@@ -298,6 +299,7 @@ function StoreProvider({ children }) {
       changes.forEach(change => {
         const id = change.doc.id;
         if (change.type === 'removed') {
+          console.log('[pun] Firestore REMOVED:', id);
           localDispatch({ type: 'REMOVE_TRIP', id });
           delete loaded[id];
           // Also remove from prevRef so write effect doesn't try to delete from Firestore
@@ -307,10 +309,9 @@ function StoreProvider({ children }) {
           return;
         }
         const data = change.doc.data();
+        console.log('[pun] Firestore', change.type, id, '_by:', data._by);
         // Pre-populate prevRef so the write effect sees prevJSON === currJSON for
         // Firestore-loaded trips and never re-writes them spuriously.
-        // This replaces the old echo guard (which was unreliable due to the 500ms
-        // remoteIds window expiring before tripsReady fires at 800ms).
         const { _by, _at, _sid, ...cleanTrip } = data;
         prevRef.current = { ...prevRef.current, [id]: { id, ...cleanTrip } };
         remoteIds.current.add(id);
@@ -322,8 +323,11 @@ function StoreProvider({ children }) {
       if (hadChanges) setLastSyncAt(Date.now());
     }
 
-    function markReady(snap) {
-      applyChanges(snap.docChanges());
+    function markReady() {
+      // NOTE: do NOT call applyChanges here again — the outer snapshot callback
+      // already called it. Calling twice causes a second SET_TRIP with existing
+      // state, which triggers the isMe merge and adds isMe:false to non-me members,
+      // making prevRef differ from state.trips and causing spurious Firestore writes.
       if (!initialised) {
         initialised = true;
         setTimeout(async () => {
@@ -391,14 +395,14 @@ function StoreProvider({ children }) {
       .where('ownerId', '==', user.uid)
       .onSnapshot(snap => {
         applyChanges(snap.docChanges());
-        if (!initialised) markReady(snap);
+        if (!initialised) markReady();
       }, console.error);
 
     const unsubShared = _db.collection('trips')
       .where('collaborators', 'array-contains', user.uid)
       .onSnapshot(snap => {
         applyChanges(snap.docChanges());
-        if (!initialised) markReady(snap);
+        if (!initialised) markReady();
       }, console.error);
 
     return () => { unsubOwned(); unsubShared(); };
@@ -423,6 +427,7 @@ function StoreProvider({ children }) {
       const prevJSON = JSON.stringify(prev[id] || null);
       const currJSON = JSON.stringify(trip);
       if (prevJSON === currJSON) return;               // unchanged
+      console.log('[pun] WRITE trip:', id, 'prevNull:', prev[id] == null);
       registerLocalId(id);   // track so we can recover if ownerId is missing
       if (!trip.isDemo) markEverHadTrips(); // returning user flag
       try {
@@ -438,6 +443,7 @@ function StoreProvider({ children }) {
     // Handle deletions
     Object.keys(prev).forEach(id => {
       if (!curr[id]) {
+        console.log('[pun] DELETE trip:', id);
         removeLocalId(id);
         _db.collection('trips').doc(id).delete().catch(console.warn);
       }

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.3.21 (2026-04-27)
+### 修正
+- 移除 `markReady` 重複呼叫 `applyChanges` 的問題
+  - 原本第一次 snapshot 時 `applyChanges` 被呼叫兩次
+  - 第二次呼叫觸發 SET_TRIP isMe merge，對非 me 成員加上 `isMe: false`
+  - 導致 prevRef 與 state.trips JSON 不同 → write effect 重複寫 Firestore
+- 加入 console.log debug 輸出（`[pun] Firestore`、`[pun] WRITE`、`[pun] DELETE`、`[pun] RESET`）
+
 ## v2.3.20 (2026-04-27)
 ### 修正
 - 修正 iOS 每次重開 app 後旅程消失的問題（Nepal bug）
