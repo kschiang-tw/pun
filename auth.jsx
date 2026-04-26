@@ -30,7 +30,15 @@ function LoginScreen() {
   async function googleSignIn() {
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
-      await firebase.auth().signInWithPopup(provider);
+      // iOS Safari (including PWA) doesn't support popup — use redirect instead
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isPWA = window.navigator.standalone === true;
+      if (isIOS || isPWA) {
+        await firebase.auth().signInWithRedirect(provider);
+        // page will reload after Google redirects back; onAuthStateChanged handles the rest
+      } else {
+        await firebase.auth().signInWithPopup(provider);
+      }
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setErr(err.message);
