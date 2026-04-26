@@ -468,6 +468,8 @@ function StoreProvider({ children }) {
         displayName: cu.displayName || '',
         photoURL: cu.photoURL || null,
       }),
+      _by: 'join:' + uid,   // prevent echo-guard from filtering this on owner's device
+      _at: firebase.firestore.FieldValue.serverTimestamp(),
     });
     // Trip will appear via onSnapshot
   }
