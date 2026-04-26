@@ -24,6 +24,11 @@ const DEVICE_ID = (() => {
   })();
 })();
 
+// ── Session ID — regenerated every page load for echo guard ───────────────────
+// Echo guard must use session-scoped ID, not DEVICE_ID (which persists across
+// reloads) — otherwise own-device trips are skipped on every app reopen.
+const SESSION_ID = Math.random().toString(36).slice(2, 10);
+
 // ── Local trip ID registry (fallback index for orphaned Firestore trips) ──────
 const LOCAL_IDS_KEY = 'pun_local_trip_ids';
 function getLocalIds() {
@@ -104,7 +109,7 @@ function reducer(state, action) {
 
     // Firestore → local: upsert a single trip
     case 'SET_TRIP': {
-      const { _by, _at, ...trip } = a.trip;
+      const { _by, _at, _sid, ...trip } = a.trip;
       // Preserve local isMe when receiving remote update
       const existing = state.trips[trip.id];
       if (existing) {
@@ -252,9 +257,10 @@ const TripActCtx = React.createContext({});
 // ── StoreProvider ─────────────────────────────────────────────────────────────
 function StoreProvider({ children }) {
   const [state, localDispatch] = React.useReducer(reducer, { activeTripId: null, trips: {} });
-  const [user,   setUser]      = React.useState(null);
+  const [user,        setUser]       = React.useState(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [tripsReady,  setTripsReady]  = React.useState(false);
+  const [lastSyncAt,  setLastSyncAt]  = React.useState(null);
   const prevRef   = React.useRef({});        // prev trips JSON for Firestore write diffing
   const remoteIds = React.useRef(new Set()); // trip IDs mid-remote-update (echo guard)
 
@@ -293,20 +299,27 @@ function StoreProvider({ children }) {
     const loaded = {};   // accumulate initial load before declaring ready
 
     function applyChanges(changes) {
+      let hadChanges = false;
       changes.forEach(change => {
         const id = change.doc.id;
         if (change.type === 'removed') {
           localDispatch({ type: 'REMOVE_TRIP', id });
           delete loaded[id];
+          hadChanges = true;
           return;
         }
         const data = change.doc.data();
-        if (data._by === DEVICE_ID) return;   // own write, skip
+        // Only skip echo from the CURRENT page session — not from previous sessions.
+        // Using DEVICE_ID alone (which persists in localStorage) would incorrectly
+        // skip own-device trips on every app reopen/refresh.
+        if (data._by === DEVICE_ID && data._sid === SESSION_ID) return;
         remoteIds.current.add(id);
         localDispatch({ type: 'SET_TRIP', trip: { id, ...data } });
         setTimeout(() => remoteIds.current.delete(id), 500);
         loaded[id] = true;
+        hadChanges = true;
       });
+      if (hadChanges) setLastSyncAt(Date.now());
     }
 
     function markReady(snap) {
@@ -416,6 +429,7 @@ function StoreProvider({ children }) {
         _db.collection('trips').doc(id).set({
           ...trip,
           _by: DEVICE_ID,
+          _sid: SESSION_ID,
           _at: firebase.firestore.FieldValue.serverTimestamp(),
         }).catch(e => console.warn('[Firestore] write:', e));
       } catch (e) {
@@ -477,7 +491,7 @@ function StoreProvider({ children }) {
   const tripActions = { shareTrip, joinTripByCode };
 
   return (
-    <AuthCtx.Provider value={{ user, authLoading }}>
+    <AuthCtx.Provider value={{ user, authLoading, lastSyncAt }}>
       <TripActCtx.Provider value={tripActions}>
         <StoreCtx.Provider value={[state, dispatch, tripsReady]}>
           {children}

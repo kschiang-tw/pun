@@ -87,9 +87,17 @@ function AppShell() {
 }
 
 // ─── Home — trip list ────────────────────────────────────────
+function fmtSyncTime(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 10)   return '剛剛';
+  if (diff < 3600) return `${Math.floor(diff / 60) || 1} 分鐘前`;
+  const d = new Date(ts);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
-  const { user } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
   const [showAbout, setShowAbout] = React.useState(false);
   const [showJoin,  setShowJoin]  = React.useState(false);
@@ -207,6 +215,11 @@ function HomeScreen({ go }) {
         <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9,
           color: 'var(--ink-4)', letterSpacing: 0.3, background: 'var(--bg)' }}>
           {user?.email || user?.displayName || ''}
+          {lastSyncAt && (
+            <span style={{ marginLeft: 6, opacity: 0.7 }}>
+              · 同步 {fmtSyncTime(lastSyncAt)}
+            </span>
+          )}
         </div>
         <button onClick={() => setShowAbout(true)} style={{
           width: '100%', border: 0, cursor: 'pointer', fontFamily: 'inherit',
