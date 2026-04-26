@@ -18,4 +18,10 @@ esac
 
 NEW="$MAJOR.$MINOR.$PATCH"
 echo "window.APP_VERSION = '$NEW';" > version.js
-echo "✓ $CURRENT → $NEW"
+
+# Bump SW cache name to bust browser cache on every deploy
+SW_CURRENT=$(grep -o "'pun-v[0-9]*'" sw.js | tr -d "'" | sed 's/pun-v//')
+SW_NEW=$((SW_CURRENT + 1))
+sed -i '' "s/const CACHE = 'pun-v${SW_CURRENT}'/const CACHE = 'pun-v${SW_NEW}'/" sw.js
+
+echo "✓ $CURRENT → $NEW  (SW cache: pun-v${SW_CURRENT} → pun-v${SW_NEW})"
