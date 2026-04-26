@@ -109,9 +109,12 @@ function reducer(state, action) {
       const existing = state.trips[trip.id];
       if (existing) {
         const meId = existing.members?.find(m => m.isMe)?.id;
-        const members = (trip.members || existing.members).map(m =>
-          ({ ...m, isMe: m.id === meId })
-        );
+        const members = (trip.members || existing.members).map(m => {
+          if (!meId) return m;                          // no me found, leave untouched
+          if (m.id === meId) return m.isMe ? m : { ...m, isMe: true };  // ensure me is marked
+          if (m.isMe) return { ...m, isMe: false };    // clear wrong isMe flag
+          return m;                                     // leave non-me members untouched (no isMe:false added)
+        });
         return { ...state, trips: { ...state.trips, [trip.id]: { ...trip, members } } };
       }
       return { ...state, trips: { ...state.trips, [trip.id]: trip } };

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.3.23 (2026-04-27)
+### 修正
+- 修正 2+ 人旅程每次重開 app 消失的根本原因
+  - SET_TRIP reducer 的 isMe merge 對「沒有 isMe 屬性」的成員加了 `isMe: false`
+  - 導致 state.trips 的 JSON 與 prevRef 不同 → write effect 每次重寫 Firestore
+  - 修正：merge 只處理「me 成員」與「錯誤標記 isMe 的成員」，其餘成員保持原樣不加 `isMe: false`
+  - 1 人旅程不受影響（只有一個 isMe:true 的成員，merge 結果相同）
+
 ## v2.3.22 (2026-04-27)
 ### 修正
 - 找到並修正 Nepal 行程消失的真正原因
