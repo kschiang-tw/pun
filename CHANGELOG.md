@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.31 (2026-04-27)
+### 修正
+- **修正 Script error. (:0) 空白頁問題**：升級 Service Worker 至 pun-v21，改變同源檔案快取策略
+  - 舊策略：所有檔案 cache-first → 每次開 app 拿到上一次的舊版，導致不同版本 JS 混用 → Babel 崩潰
+  - 新策略：同源本地檔案（.jsx、.js、.css、.html）改為 **network-first**，有網路就拿最新版；只有離線時才 fallback 到快取
+  - CDN 外部資源維持 cache-first（版本已固定，不會變動）
+
 ## v2.3.30 (2026-04-27)
 ### 介面
 - 字典說明的「分」改為粗體，移除斜體
