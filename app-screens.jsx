@@ -171,6 +171,15 @@ function TripScreen({ go, tripId }) {
 }
 
 function TripMenu({ trip, dispatch, go, onClose, onInvite }) {
+  const { user } = useAuth();
+
+  // accessList: new trips have it; fall back to just the current owner for old trips
+  const accessList = (trip.accessList && trip.accessList.length > 0)
+    ? trip.accessList
+    : (user && trip.ownerId === user.uid
+        ? [{ uid: user.uid, email: user.email || '', displayName: user.displayName || '', photoURL: user.photoURL || null }]
+        : []);
+
   const menuItem = (label, icon, onClick, danger) => (
     <button onClick={() => { onClose(); onClick(); }} style={{
       width: '100%', textAlign: 'left', border: 0, background: 'transparent',
@@ -205,6 +214,49 @@ function TripMenu({ trip, dispatch, go, onClose, onInvite }) {
             <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
           </svg>
         ), () => { onClose(); onInvite(); })}
+
+        {/* Access list */}
+        {accessList.length > 0 && (
+          <div style={{ padding: '6px 20px 12px' }}>
+            <div style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500,
+              letterSpacing: 0.4, marginBottom: 10, textTransform: 'uppercase' }}>
+              已加入
+            </div>
+            {accessList.map(member => (
+              <div key={member.uid} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                {member.photoURL ? (
+                  <img src={member.photoURL} referrerPolicy="no-referrer"
+                    style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}/>
+                ) : (
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--surface)', border: '0.5px solid var(--hairline)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 600, color: 'var(--ink-2)',
+                  }}>
+                    {(member.displayName || member.email || '?')[0].toUpperCase()}
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
+                    {member.displayName || member.email || '未知'}
+                  </div>
+                  {member.displayName && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {member.email}
+                    </div>
+                  )}
+                </div>
+                {member.uid === trip.ownerId && (
+                  <span style={{ fontSize: 10, color: 'var(--ink-4)', flexShrink: 0 }}>擁有者</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '0 20px 6px' }}/>
 
         {menuItem('刪除旅程', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">

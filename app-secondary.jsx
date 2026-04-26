@@ -23,9 +23,15 @@ function CreateTripScreen({ go }) {
       tint: tints[i % tints.length], isMe: m.isMe,
     }));
     if (!ms.some(m => m.isMe)) ms.unshift({ id:'me', name:'You', initial:'你', tint:'sage', isMe:true });
+    const accessList = user ? [{
+      uid: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || '',
+      photoURL: user.photoURL || null,
+    }] : [];
     dispatch({ type:'CREATE_TRIP', title, startDate, endDate, cover,
       baseCurrency: base, currencies: [base], rates: { [base]: 1 }, members: ms,
-      ownerId: user?.uid });
+      ownerId: user?.uid, accessList });
     go('home');
   };
 

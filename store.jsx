@@ -138,6 +138,7 @@ function reducer(state, action) {
         members: a.members || [{ id: 'me', name: 'You', initial: '你', tint: 'sage', isMe: true }],
         expenses: [], loans: [],
         ownerId: a.ownerId, collaborators: [], shareCode: null,
+        accessList: a.accessList || [],
       };
       return { ...state, activeTripId: trip.id,
         trips: { ...state.trips, [trip.id]: trip } };
@@ -458,8 +459,15 @@ function StoreProvider({ children }) {
     if (!tripSnap.exists) throw new Error('此旅程已不存在');
     if (tripSnap.data().ownerId === uid) return; // already owner
     if ((tripSnap.data().collaborators || []).includes(uid)) return; // already in
+    const cu = currentUser || user;
     await _db.collection('trips').doc(tripId).update({
       collaborators: firebase.firestore.FieldValue.arrayUnion(uid),
+      accessList: firebase.firestore.FieldValue.arrayUnion({
+        uid: cu.uid,
+        email: cu.email || '',
+        displayName: cu.displayName || '',
+        photoURL: cu.photoURL || null,
+      }),
     });
     // Trip will appear via onSnapshot
   }
