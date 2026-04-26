@@ -3,6 +3,7 @@
 // ─── Create Trip ──────────────────────────────────────────────
 function CreateTripScreen({ go }) {
   const [, dispatch] = useStore();
+  const { user } = useAuth();
   const [title, setTitle] = React.useState('');
   const today = new Date().toISOString().slice(0,10);
   const inWeek = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
@@ -23,7 +24,8 @@ function CreateTripScreen({ go }) {
     }));
     if (!ms.some(m => m.isMe)) ms.unshift({ id:'me', name:'You', initial:'你', tint:'sage', isMe:true });
     dispatch({ type:'CREATE_TRIP', title, startDate, endDate, cover,
-      baseCurrency: base, currencies: [base], rates: { [base]: 1 }, members: ms });
+      baseCurrency: base, currencies: [base], rates: { [base]: 1 }, members: ms,
+      ownerId: user?.uid });
     go('home');
   };
 
