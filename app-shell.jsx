@@ -10,11 +10,25 @@ const COVERS = [
 ];
 
 function AppShell() {
+  const { user, authLoading } = useAuth();
+  const [, , tripsReady] = useStore();
   const [route, setRoute] = useState({ name: 'home' });
   const go = (name, params = {}) => {
     setRoute({ name, ...params });
     window.scrollTo(0, 0);
   };
+
+  // Show splash while auth resolves
+  if (authLoading) return (
+    <div style={{ minHeight: '100svh', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: 'var(--bg)' }}>
+      <div style={{ fontSize: 36, fontWeight: 800, fontStyle: 'italic',
+        color: 'var(--ink-3)', letterSpacing: -1 }}>pun</div>
+    </div>
+  );
+
+  // Not signed in → login screen
+  if (!user) return <LoginScreen/>;
 
   let view;
   switch (route.name) {
@@ -47,24 +61,10 @@ function AppShell() {
 // ─── Home — trip list ────────────────────────────────────────
 function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
-  const { roomId, status } = useRoom();
+  const { user } = useAuth();
   const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
   const [showAbout, setShowAbout] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
-
-  function copyInviteLink() {
-    const url = location.href; // already contains ?room=ID
-    if (navigator.share) {
-      navigator.share({ title: 'pun · 旅行分帳', text: '加入我的旅程共同記帳', url });
-    } else {
-      navigator.clipboard?.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }
-
-  // Sync status dot colour
-  const dotColor = status === 'ready' ? 'var(--pos)' : status === 'error' ? 'var(--neg)' : '#aaa';
+  const [showJoin,  setShowJoin]  = React.useState(false);
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -73,34 +73,24 @@ function HomeScreen({ go }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div className="t-display" style={{ fontSize: 34 }}>旅程</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Copy invite link */}
-            <button onClick={copyInviteLink} title="複製邀請連結"
-              style={{
-                width: 36, height: 36, borderRadius: '50%', border: 0,
+            {/* Join trip */}
+            <button onClick={() => setShowJoin(true)} title="加入旅程"
+              style={{ width: 36, height: 36, borderRadius: '50%', border: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', background: 'var(--surface)',
-                color: copied ? 'var(--pos)' : 'var(--ink-2)',
-              }}>
-              {copied ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                  strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                  strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-              )}
+                cursor: 'pointer', background: 'var(--surface)', color: 'var(--ink-2)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/>
+                <line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
             </button>
             {/* New trip */}
             <button onClick={() => go('create')}
-              style={{
-                width: 36, height: 36, borderRadius: '50%', border: 0,
+              style={{ width: 36, height: 36, borderRadius: '50%', border: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', background: 'var(--ink)', color: 'var(--bg)',
-              }}>
+                cursor: 'pointer', background: 'var(--ink)', color: 'var(--bg)' }}>
               <Icon.plus width={18} height={18}/>
             </button>
           </div>
@@ -183,13 +173,9 @@ function HomeScreen({ go }) {
       )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5 }}>
-        {/* Room ID + sync status bar */}
-        <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9, color: 'var(--ink-4)', letterSpacing: 0.3, background: 'var(--bg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor, display: 'inline-block', flexShrink: 0 }}/>
-          房間：{roomId}
-          {status === 'connecting' && ' · 連線中…'}
-          {status === 'error' && ' · 連線失敗'}
-          {status === 'offline' && ' · 離線模式'}
+        <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9,
+          color: 'var(--ink-4)', letterSpacing: 0.3, background: 'var(--bg)' }}>
+          {user?.email || user?.displayName || ''}
         </div>
         <button onClick={() => setShowAbout(true)} style={{
           width: '100%', border: 0, cursor: 'pointer', fontFamily: 'inherit',
@@ -207,6 +193,7 @@ function HomeScreen({ go }) {
       </div>
 
       {showAbout && <AboutSheet onClose={() => setShowAbout(false)}/>}
+      {showJoin  && <JoinSheet  onClose={() => setShowJoin(false)}/>}
     </div>
   );
 }

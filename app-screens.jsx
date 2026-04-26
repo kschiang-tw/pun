@@ -3,7 +3,9 @@
 function TripScreen({ go, tripId }) {
   const trip = useTrip(tripId);
   const [, dispatch] = useStore();
-  const [showMenu, setShowMenu] = React.useState(false);
+  const { user } = useAuth();
+  const [showMenu,   setShowMenu]   = React.useState(false);
+  const [showInvite, setShowInvite] = React.useState(false);
   if (!trip) return null;
 
   const tots = ENGINE.totals(trip);
@@ -162,12 +164,14 @@ function TripScreen({ go, tripId }) {
         }}><Icon.plus width={26} height={26}/></button>
       </div>
 
-      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go} onClose={() => setShowMenu(false)}/>}
+      {showMenu && <TripMenu trip={trip} dispatch={dispatch} go={go} user={user}
+        onClose={() => setShowMenu(false)} onInvite={() => setShowInvite(true)}/>}
+      {showInvite && <InviteSheet tripId={trip.id} onClose={() => setShowInvite(false)}/>}
     </div>
   );
 }
 
-function TripMenu({ trip, dispatch, go, onClose }) {
+function TripMenu({ trip, dispatch, go, onClose, onInvite, user }) {
   const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', lastSynced: null });
   React.useEffect(() => GDriveSync.subscribe(setSyncStatus), []);
 
@@ -196,6 +200,15 @@ function TripMenu({ trip, dispatch, go, onClose }) {
           {trip.title}
         </div>
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '0 20px 6px' }}/>
+
+        {trip.ownerId === user?.uid && menuItem('邀請旅伴', (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+          </svg>
+        ), () => { onClose(); onInvite(); })}
 
         {menuItem('雲端同步', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
