@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.28 (2026-04-27)
+### 修正
+- **根本修正多人旅程消失問題**：將 write effect 從 JSON 比對改為 `dirtyIds` 明確追蹤
+  - 舊做法：每次 `state.trips` 變化就用 `JSON.stringify` 比對 prevRef 與 curr，任何 property 順序或 isMe 屬性差異都會觸發寫入
+  - 新做法：只在旅程「全新」（prevRef 無此 ID）或「使用者主動修改」（dispatch USER_WRITE_ACTIONS）時才寫入 Firestore
+  - 從 Firestore 載入的旅程（SET_TRIP via onSnapshot 或 recovery）不標記 dirty → 不會被 write effect 重寫
+
 ## v2.3.27 (2026-04-27)
 ### 介面
 - 載入畫面 logo 下方加入字典風格定義文字

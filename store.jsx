@@ -268,8 +268,9 @@ function StoreProvider({ children }) {
   const [authLoading, setAuthLoading] = React.useState(true);
   const [tripsReady,  setTripsReady]  = React.useState(false);
   const [lastSyncAt,  setLastSyncAt]  = React.useState(null);
-  const prevRef   = React.useRef({});        // prev trips JSON for Firestore write diffing
-  const remoteIds = React.useRef(new Set()); // trip IDs mid-remote-update (echo guard)
+  const prevRef   = React.useRef({});        // tracks which trip IDs exist in Firestore (for new-trip detection + deletion)
+  const remoteIds = React.useRef(new Set()); // trip IDs mid-remote-update
+  const dirtyIds  = React.useRef(new Set()); // trip IDs modified by user actions (need Firestore write)
 
   // ── Auth listener + email link handling ──────────────────────────────────
   React.useEffect(() => {
@@ -438,27 +439,29 @@ function StoreProvider({ children }) {
   }, [user?.uid, tripsReady]); // eslint-disable-line
 
   // ── Write local changes → Firestore ─────────────────────────────────────
+  // Only write trips that are:
+  //   (a) new  — not yet known to Firestore (prevRef has no entry)
+  //   (b) dirty — explicitly modified by a user action via dispatch()
+  // This replaces the old JSON.stringify comparison which was fragile:
+  // property-order differences and isMe flag mutations caused spurious writes
+  // that overwrote multi-member trips on every app reopen.
   React.useEffect(() => {
     if (!user || !tripsReady) return;
     const prev = prevRef.current;
     const curr = state.trips;
     Object.entries(curr).forEach(([id, trip]) => {
-      if (remoteIds.current.has(id)) return;           // came from Firestore
-      const prevJSON = JSON.stringify(prev[id] || null);
-      const currJSON = JSON.stringify(trip);
-      if (prevJSON === currJSON) return;               // unchanged
-      console.log('[pun] WRITE trip:', id, 'prevNull:', prev[id] == null);
-      registerLocalId(id);   // track so we can recover if ownerId is missing
-      if (!trip.isDemo) markEverHadTrips(); // returning user flag
-      try {
-        _db.collection('trips').doc(id).set({
-          ...trip,
-          _by: DEVICE_ID,
-          _at: firebase.firestore.FieldValue.serverTimestamp(),
-        }).catch(e => console.warn('[Firestore] write:', e));
-      } catch (e) {
-        console.warn('[Firestore] write sync:', e);
-      }
+      const isNew   = !prev[id];                     // never written to Firestore
+      const isDirty = dirtyIds.current.has(id);      // user modified this trip
+      if (!isNew && !isDirty) return;                // Firestore-sourced, no changes
+      if (remoteIds.current.has(id)) return;         // mid-remote-update guard
+      console.log('[pun] WRITE trip:', id, isNew ? '(new)' : '(dirty)');
+      dirtyIds.current.delete(id);
+      registerLocalId(id);
+      if (!trip.isDemo) markEverHadTrips();
+      _db.collection('trips').doc(id).set({
+        ...trip, _by: DEVICE_ID,
+        _at: firebase.firestore.FieldValue.serverTimestamp(),
+      }).catch(e => console.warn('[Firestore] write:', e));
     });
     // Handle deletions
     Object.keys(prev).forEach(id => {
@@ -471,7 +474,19 @@ function StoreProvider({ children }) {
     prevRef.current = curr;
   }, [state.trips, tripsReady, user?.uid]); // eslint-disable-line
 
-  const dispatch = React.useCallback(a => localDispatch(a), []);
+  // User-facing dispatch: mark trips dirty so write effect knows to sync them
+  const USER_WRITE_ACTIONS = [
+    'UPDATE_TRIP','ADD_EXPENSE','UPDATE_EXPENSE','DELETE_EXPENSE',
+    'ADD_LOAN','DELETE_LOAN','ADD_MEMBER','REMOVE_MEMBER',
+    'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY',
+  ];
+  const dispatch = React.useCallback(a => {
+    if (USER_WRITE_ACTIONS.includes(a.type)) {
+      const id = a.id || a.tripId;
+      if (id) dirtyIds.current.add(id);
+    }
+    localDispatch(a);
+  }, []); // eslint-disable-line
 
   // ── Trip action helpers (invite / join) ───────────────────────────────────
   async function shareTrip(tripId) {
