@@ -1,6 +1,7 @@
 // auth.jsx — Login Screen UI (auth state is managed by store.jsx / StoreProvider)
 
 const EMAIL_KEY = 'pun_signin_email';
+const GSI_CLIENT_ID = '1000087863029-mgdpdg9k21jklgar3u06vo84igrhimab.apps.googleusercontent.com';
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen() {
@@ -9,11 +10,56 @@ function LoginScreen() {
   const [err,   setErr]   = React.useState('');
 
   // Only PWA standalone mode (added to home screen) cannot use signInWithPopup.
-  // Regular iOS Safari and all desktop browsers support popup fine.
+  // Use Google Identity Services (GSI / FedCM) for PWA, popup for all others.
   const isPWA = window.navigator.standalone === true;
-  const googleUnavailable = isPWA;
 
   const actionUrl = location.origin + location.pathname + location.search;
+  const gsiButtonRef = React.useRef(null);
+
+  // Initialize GSI rendered button for PWA standalone mode
+  React.useEffect(() => {
+    if (!isPWA) return;
+
+    function initGSI() {
+      if (!window.google?.accounts?.id || !gsiButtonRef.current) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GSI_CLIENT_ID,
+        callback: async (response) => {
+          try {
+            const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+            await firebase.auth().signInWithCredential(credential);
+          } catch (e) {
+            setErr(e.message);
+            setPhase('error');
+          }
+        },
+        use_fedcm_for_prompt: true,
+      });
+
+      window.google.accounts.id.renderButton(gsiButtonRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'pill',
+        logo_alignment: 'left',
+        width: Math.min(window.innerWidth - 48, 340),
+      });
+    }
+
+    if (window.google?.accounts?.id) {
+      initGSI();
+    } else {
+      const t = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(t);
+          initGSI();
+        }
+      }, 100);
+      return () => clearInterval(t);
+    }
+  }, [isPWA]);
 
   async function sendLink(e) {
     e.preventDefault();
@@ -83,14 +129,12 @@ function LoginScreen() {
         ) : (
           /* ── Login form ── */
           <>
-            {/* Google — hidden on iOS/PWA where OAuth redirect loop occurs */}
-            {googleUnavailable ? (
-              <div style={{
-                padding: '12px 14px', borderRadius: 14, marginBottom: 16,
-                background: 'var(--surface)', border: '0.5px solid var(--hairline)',
-                fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.6, textAlign: 'center',
-              }}>
-                🏠 加到主畫面後不支援 Google 彈窗<br/>請使用下方 <b>Email 連結</b> 登入
+            {/* Google Sign-In:
+                PWA standalone → GSI rendered button (FedCM / One Tap, no popup needed)
+                Regular browser → signInWithPopup                                       */}
+            {isPWA ? (
+              <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', minHeight: 44 }}>
+                <div ref={gsiButtonRef} />
               </div>
             ) : (
               <button onClick={googleSignIn} style={{
