@@ -458,10 +458,16 @@ function StoreProvider({ children }) {
       dirtyIds.current.delete(id);
       registerLocalId(id);
       if (!trip.isDemo) markEverHadTrips();
-      _db.collection('trips').doc(id).set({
-        ...trip, _by: DEVICE_ID,
-        _at: firebase.firestore.FieldValue.serverTimestamp(),
-      }).catch(e => console.warn('[Firestore] write:', e));
+      try {
+        _db.collection('trips').doc(id).set({
+          ...trip, _by: DEVICE_ID,
+          _at: firebase.firestore.FieldValue.serverTimestamp(),
+        }).catch(e => console.warn('[Firestore] write:', e));
+      } catch (e) {
+        // Firestore throws synchronously for invalid data (e.g. undefined values).
+        // Catch here so the error doesn't escape as an uncaught cross-origin "Script error."
+        console.warn('[Firestore] write (sync error):', e, 'trip:', id);
+      }
     });
     // Handle deletions
     Object.keys(prev).forEach(id => {

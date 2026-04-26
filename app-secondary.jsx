@@ -20,7 +20,8 @@ function CreateTripScreen({ go }) {
       id: m.isMe ? 'me' : uid(),
       name: m.name.trim(),
       initial: m.name.trim()[0].toUpperCase(),
-      tint: tints[i % tints.length], isMe: m.isMe,
+      tint: tints[i % tints.length],
+      ...(m.isMe ? { isMe: true } : {}),  // never include isMe:undefined — Firestore throws on undefined values
     }));
     if (!ms.some(m => m.isMe)) ms.unshift({ id:'me', name:'You', initial:'你', tint:'sage', isMe:true });
     const accessList = user ? [{

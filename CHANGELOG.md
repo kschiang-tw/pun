@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.32 (2026-04-27)
+### 修正
+- **真正的根本原因修正**：多人旅程新增時成員有 `isMe: undefined`，Firestore 遇到 `undefined` 值會同步 throw，這就是 Script error. (:0) 的來源
+  - `app-secondary.jsx` CreateTripScreen：改為 `...(m.isMe ? { isMe: true } : {})` — 非 me 成員完全不帶 `isMe` 屬性，不再出現 `isMe: undefined`
+  - 這同時解釋了多人旅程從來沒有真正寫進 Firestore 的原因：舊版的 `try-catch` 把這個同步錯誤吞掉，trip 消失是因為根本沒寫進去
+  - `store.jsx` write effect：加回 `try-catch` 包住 `.set()` 呼叫，防止未來其他 `undefined` 值再度造成不明崩潰
+
 ## v2.3.31 (2026-04-27)
 ### 修正
 - **修正 Script error. (:0) 空白頁問題**：升級 Service Worker 至 pun-v21，改變同源檔案快取策略
