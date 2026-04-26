@@ -250,7 +250,15 @@ function SettleScreen({ go, tripId }) {
       <div style={{ padding: '54px 16px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <CircleIconBtn icon="back" onClick={() => go('trip', { tripId })}/>
         <div style={{ fontSize: 15, fontWeight: 600 }}>結算</div>
-        <div style={{ width: 32 }}/>
+        <button onClick={() => go('export', { tripId })} style={{
+          border: 0, background: 'var(--surface)', color: 'var(--ink-2)',
+          height: 32, padding: '0 12px', borderRadius: 999,
+          fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          {React.createElement(Icon.download, { width: 14, height: 14 })}
+          匯出
+        </button>
       </div>
 
       <div style={{ padding: '8px 24px 0' }}>

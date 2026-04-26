@@ -2,6 +2,32 @@
 
 const { useState, useEffect } = React;
 
+// ── Error Boundary (catch render crashes and show on-screen) ──────────────────
+class AppErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(e) { return { err: e }; }
+  render() {
+    if (this.state.err) return (
+      <div style={{ padding: 24, background: 'var(--bg)', minHeight: '100svh' }}>
+        <div style={{ background: '#fee', border: '1px solid #faa', borderRadius: 12,
+          padding: 16, fontSize: 12, color: '#900', lineHeight: 1.6, wordBreak: 'break-all' }}>
+          <b>錯誤（請截圖回報）</b><br/>
+          {this.state.err.message}<br/>
+          <pre style={{ marginTop: 8, fontSize: 10, opacity: 0.7, whiteSpace: 'pre-wrap' }}>
+            {this.state.err.stack?.slice(0, 400)}
+          </pre>
+        </div>
+        <button onClick={() => this.setState({ err: null })}
+          style={{ marginTop: 16, border: 0, background: 'var(--ink)', color: 'var(--bg)',
+            padding: '10px 20px', borderRadius: 999, fontSize: 14, cursor: 'pointer' }}>
+          重試
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const COVERS = [
   'linear-gradient(135deg, oklch(0.72 0.025 235), oklch(0.78 0.020 200), oklch(0.85 0.018 145))',
   'linear-gradient(135deg, oklch(0.78 0.030 30), oklch(0.68 0.040 15))',
@@ -53,7 +79,9 @@ function AppShell() {
       color: 'var(--ink)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
     }}>
-      {view}
+      <AppErrorBoundary key={route.name + (route.tripId || '')}>
+        {view}
+      </AppErrorBoundary>
     </div>
   );
 }
