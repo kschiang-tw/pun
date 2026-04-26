@@ -66,6 +66,7 @@ function makeDemoTrip(ownerId) {
     ],
     // Firestore ownership fields
     ownerId, collaborators: [], shareCode: null,
+    isDemo: true,
   };
 }
 

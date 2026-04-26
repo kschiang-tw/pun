@@ -163,14 +163,17 @@ function HomeScreen({ go }) {
         })}
       </div>
 
-      {s.trips['demo'] && (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <button onClick={() => { if (confirm('清除範例資料？')) dispatch({ type: 'DELETE_TRIP', id: 'demo' }); }}
-            style={{ border: 0, background: 'transparent', color: 'var(--ink-3)', fontSize: 11, cursor: 'pointer' }}>
-            清除範例資料
-          </button>
-        </div>
-      )}
+      {(() => {
+        const demoTrip = Object.values(s.trips).find(t => t.isDemo);
+        return demoTrip ? (
+          <div style={{ padding: '20px', textAlign: 'center' }}>
+            <button onClick={() => { if (confirm('清除範例資料？')) dispatch({ type: 'DELETE_TRIP', id: demoTrip.id }); }}
+              style={{ border: 0, background: 'transparent', color: 'var(--ink-3)', fontSize: 11, cursor: 'pointer' }}>
+              清除範例資料
+            </button>
+          </div>
+        ) : null;
+      })()}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 5 }}>
         <div style={{ textAlign: 'center', padding: '4px 20px 6px', fontSize: 9,
