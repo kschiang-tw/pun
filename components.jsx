@@ -218,8 +218,49 @@ function CcyChip({ code, size = 24 }) {
   );
 }
 
+// ── Print helper ─────────────────────────────────────────────────────────────
+// Opens a lightweight standalone HTML window for printing — avoids iOS PWA
+// re-rendering the full React+Babel page (which takes 5+ minutes).
+function openPrintWindow(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) { window.print(); return; }
+
+  // Resolve CSS custom properties so the print window renders correctly
+  const rs = getComputedStyle(document.documentElement);
+  const varNames = [
+    '--ink','--ink-2','--ink-3','--ink-4',
+    '--bg','--surface','--hairline',
+    '--font-sans','--font-num','--font-mono',
+  ];
+  const cssVars = varNames.map(v => `${v}:${rs.getPropertyValue(v)}`).join(';');
+
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width"/>
+<style>
+  :root{${cssVars}}
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{margin:0;padding:24px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif}
+  @media print{body{padding:0}}
+</style>
+</head><body>
+${el.outerHTML}
+<script>
+window.onload=function(){setTimeout(function(){
+  window.print();
+  window.onafterprint=function(){window.close()};
+},150)};
+<\/script>
+</body></html>`;
+
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+
 Object.assign(window, {
   Icon, Avatar, AvatarStack, CatIcon,
   GlassTabBar, GlassNavBar, PillButton, CircleIconBtn,
-  CcyChip, CATEGORY_ICON,
+  CcyChip, CATEGORY_ICON, openPrintWindow,
 });

@@ -478,7 +478,7 @@ function ExportScreen({ go, tripId }) {
     a.href = url; a.download = `${trip.title.replace(/\s+/g,'_')}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
-  const printPDF = () => window.print();
+  const printPDF = () => openPrintWindow('pdf-paper');
   const copyShare = async () => {
     const txt = ENGINE.toShareText(trip);
     try { await navigator.clipboard.writeText(txt); alert('結算結果已複製'); }

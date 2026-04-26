@@ -7,7 +7,7 @@ function StatementScreen({ go, tripId }) {
   if (!trip) return null;
   const member = trip.members.find(m => m.id === memberId) || trip.members[0];
   const data = buildStatement(trip, memberId);
-  const print = () => window.print();
+  const print = () => openPrintWindow('statement-doc');
 
   return (
     <div style={{ paddingBottom: 60 }}>
