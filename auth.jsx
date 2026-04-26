@@ -1,7 +1,7 @@
 // auth.jsx — Login Screen UI (auth state is managed by store.jsx / StoreProvider)
 
 const EMAIL_KEY = 'pun_signin_email';
-const GSI_CLIENT_ID = '1000087863029-mgdpdg9k21jklgar3u06vo84igrhimab.apps.googleusercontent.com';
+const GSI_CLIENT_ID = '70246720877-srg60gr093bhfb081b0ol1f4nrn35h1b.apps.googleusercontent.com';
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen() {
