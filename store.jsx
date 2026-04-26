@@ -109,12 +109,21 @@ function reducer(state, action) {
       const existing = state.trips[trip.id];
       if (existing) {
         const meId = existing.members?.find(m => m.isMe)?.id;
+        // Only rebuild members array if isMe flags actually need changing.
+        // IMPORTANT: avoid { ...trip, members } when members is unchanged —
+        // that moves the `members` key to the end of the object, changing
+        // JSON.stringify output and causing spurious Firestore writes.
+        let membersChanged = false;
         const members = (trip.members || existing.members).map(m => {
-          if (!meId) return m;                          // no me found, leave untouched
-          if (m.id === meId) return m.isMe ? m : { ...m, isMe: true };  // ensure me is marked
-          if (m.isMe) return { ...m, isMe: false };    // clear wrong isMe flag
-          return m;                                     // leave non-me members untouched (no isMe:false added)
+          if (!meId) return m;
+          if (m.id === meId && !m.isMe)  { membersChanged = true; return { ...m, isMe: true }; }
+          if (m.id !== meId && m.isMe)   { membersChanged = true; return { ...m, isMe: false }; }
+          return m;
         });
+        if (!membersChanged) {
+          // Members are already correct — use trip as-is to preserve property order
+          return { ...state, trips: { ...state.trips, [trip.id]: trip } };
+        }
         return { ...state, trips: { ...state.trips, [trip.id]: { ...trip, members } } };
       }
       return { ...state, trips: { ...state.trips, [trip.id]: trip } };

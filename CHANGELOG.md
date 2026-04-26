@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.3.25 (2026-04-27)
+### 修正
+- **重要**：升級 Service Worker 至 pun-v20，強制清除舊快取
+  - 之前每次更新 store.jsx 但 SW cache name 不變，導致 iOS PWA 一直跑舊版本
+- 修正 SET_TRIP reducer property reordering bug
+  - 原本即使 members 沒有變化，`{ ...trip, members }` 會把 `members` 移到 object 最後
+  - 導致 JSON.stringify 結果與 prevRef 不同 → write effect 每次都觸發重寫
+  - 修正：只在 isMe flags 真正需要改變時才重建 members；否則直接用原始 trip 物件
+
 ## v2.3.24 (2026-04-27)
 ### 其他
 - 新增 README.md
