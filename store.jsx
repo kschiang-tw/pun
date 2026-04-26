@@ -24,6 +24,24 @@ const DEVICE_ID = (() => {
   })();
 })();
 
+// ── Local trip ID registry (fallback index for orphaned Firestore trips) ──────
+const LOCAL_IDS_KEY = 'pun_local_trip_ids';
+function getLocalIds() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_IDS_KEY) || '[]'); } catch { return []; }
+}
+function registerLocalId(id) {
+  try {
+    const ids = new Set(getLocalIds()); ids.add(id);
+    localStorage.setItem(LOCAL_IDS_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
+function removeLocalId(id) {
+  try {
+    const ids = new Set(getLocalIds()); ids.delete(id);
+    localStorage.setItem(LOCAL_IDS_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -290,8 +308,50 @@ function StoreProvider({ children }) {
       applyChanges(snap.docChanges());
       if (!initialised) {
         initialised = true;
-        // Seed demo trip if user has no trips at all (checked after both queries settle)
-        setTimeout(() => {
+        setTimeout(async () => {
+          // ── 1. Migrate old localStorage trips (pre-Firestore era) ────────────
+          const OLD_KEYS = ['splittrip_v1', 'pun_v1'];
+          for (const key of OLD_KEYS) {
+            try {
+              const raw = localStorage.getItem(key);
+              if (!raw) continue;
+              const stored = JSON.parse(raw);
+              const trips = Object.values(stored?.trips || {});
+              for (const trip of trips) {
+                if (!trip?.id) continue;
+                const patch = { ...trip, ownerId: trip.ownerId || user.uid,
+                  collaborators: trip.collaborators || [], shareCode: trip.shareCode || null,
+                  _by: DEVICE_ID, _at: firebase.firestore.FieldValue.serverTimestamp() };
+                try {
+                  await _db.collection('trips').doc(trip.id).set(patch, { merge: true });
+                  loaded[trip.id] = true;
+                  localDispatch({ type: 'SET_TRIP', trip: patch });
+                } catch (e) { console.warn('[Migration]', e); }
+              }
+              localStorage.removeItem(key);
+              console.log('[Migration] migrated', trips.length, 'trips from', key);
+            } catch (e) { console.warn('[Migration] parse:', e); }
+          }
+
+          // ── 2. Recover orphaned Firestore trips (missing ownerId) ────────────
+          const localIds = getLocalIds();
+          const missing = localIds.filter(id => !loaded[id]);
+          for (const id of missing) {
+            try {
+              const doc = await _db.collection('trips').doc(id).get();
+              if (!doc.exists) { removeLocalId(id); continue; }
+              const data = doc.data();
+              // Fix missing ownerId so future queries find it
+              if (!data.ownerId) {
+                await _db.collection('trips').doc(id).update({ ownerId: user.uid })
+                  .catch(console.warn);
+              }
+              loaded[id] = true;
+              localDispatch({ type: 'SET_TRIP', trip: { id, ...data, ownerId: data.ownerId || user.uid } });
+            } catch (e) { console.warn('[Recovery]', id, e); }
+          }
+
+          // ── 3. Seed demo if still no trips ───────────────────────────────────
           if (Object.keys(loaded).length === 0) {
             const demo = makeDemoTrip(user.uid);
             try {
@@ -299,9 +359,7 @@ function StoreProvider({ children }) {
                 ...demo, _by: DEVICE_ID,
                 _at: firebase.firestore.FieldValue.serverTimestamp(),
               }).catch(e => console.warn('[Firestore] demo seed:', e));
-            } catch (e) {
-              console.warn('[Firestore] demo seed sync:', e);
-            }
+            } catch (e) { console.warn('[Firestore] demo seed sync:', e); }
             localDispatch({ type: 'SET_TRIP', trip: demo });
           }
           setTripsReady(true);
@@ -345,6 +403,7 @@ function StoreProvider({ children }) {
       const prevJSON = JSON.stringify(prev[id] || null);
       const currJSON = JSON.stringify(trip);
       if (prevJSON === currJSON) return;               // unchanged
+      registerLocalId(id);   // track so we can recover if ownerId is missing
       try {
         _db.collection('trips').doc(id).set({
           ...trip,
@@ -357,7 +416,10 @@ function StoreProvider({ children }) {
     });
     // Handle deletions
     Object.keys(prev).forEach(id => {
-      if (!curr[id]) _db.collection('trips').doc(id).delete().catch(console.warn);
+      if (!curr[id]) {
+        removeLocalId(id);
+        _db.collection('trips').doc(id).delete().catch(console.warn);
+      }
     });
     prevRef.current = curr;
   }, [state.trips, tripsReady, user?.uid]); // eslint-disable-line
