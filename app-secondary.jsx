@@ -161,14 +161,17 @@ function MembersScreen({ go, tripId }) {
                   <div className="t-amount tabular" style={{ fontSize:13, fontWeight:600, color: bal>0.5?'var(--pos)':bal<-0.5?'var(--neg)':'var(--ink-2)' }}>
                     {bal>0?'+':bal<0?'−':''}{fmtBase(Math.abs(bal), trip)}
                   </div>
-                  {!m.isMe && (
-                    <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:2 }}>
+                  {m.isMe && m.id !== 'me' ? (
+                    <button onClick={() => dispatch({ type:'SET_ME', tripId, memberId: null })}
+                      style={{ border:0, background:'transparent', color:'var(--ink-3)', fontSize:11, cursor:'pointer', padding:0, marginTop:2 }}>更換</button>
+                  ) : !m.isMe ? (
+                    <div style={{ display:'flex', gap:10, justifyContent:'flex-end', alignItems:'center', marginTop:4 }}>
                       <button onClick={() => dispatch({ type:'SET_ME', tripId, memberId: m.id })}
-                        style={{ border:0, background:'transparent', color:'var(--accent,#7c6f64)', fontSize:11, cursor:'pointer', padding:0 }}>這是我</button>
+                        style={{ border:0, background:'var(--ink)', color:'var(--bg)', fontSize:12, fontWeight:600, cursor:'pointer', padding:'4px 10px', borderRadius:999 }}>這是我</button>
                       <button onClick={() => { if(confirm(`移除 ${m.name}？`)) dispatch({ type:'REMOVE_MEMBER', tripId, memberId: m.id }); }}
-                        style={{ border:0, background:'transparent', color:'var(--ink-3)', fontSize:11, cursor:'pointer', padding:0 }}>移除</button>
+                        style={{ border:0, background:'transparent', color:'var(--ink-4)', fontSize:11, cursor:'pointer', padding:0 }}>移除</button>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             );

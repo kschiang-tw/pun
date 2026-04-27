@@ -185,7 +185,11 @@ function reducer(state, action) {
 
     case 'SET_ME': {
       const t = state.trips[a.tripId]; if (!t) return state;
-      localStorage.setItem(`pun_me_${a.tripId}`, a.memberId);
+      if (a.memberId) {
+        localStorage.setItem(`pun_me_${a.tripId}`, a.memberId);
+      } else {
+        localStorage.removeItem(`pun_me_${a.tripId}`);
+      }
       const members = t.members.map(m => {
         if (m.id === a.memberId) return m.isMe ? m : { ...m, isMe: true };
         if (m.isMe) return { ...m, isMe: false };
