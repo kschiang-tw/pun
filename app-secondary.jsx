@@ -152,7 +152,8 @@ function MembersScreen({ go, tripId }) {
                 <div style={{ flex:1 }}>
                   <div className="t-h" style={{ fontSize:14 }}>
                     {m.name}
-                    {m.isMe && <span className="chip sage" style={{ marginLeft:6, fontSize:9, padding:'1px 6px' }}>你</span>}
+                    {m.id === 'me' && <span className="chip sage" style={{ marginLeft:6, fontSize:9, padding:'1px 6px' }}>發起者</span>}
+                    {m.isMe && m.id !== 'me' && <span className="chip sage" style={{ marginLeft:6, fontSize:9, padding:'1px 6px' }}>你</span>}
                   </div>
                   <div className="t-meta" style={{ marginTop:2, fontSize:11 }}>付過 {fmtBase(paid, trip)}</div>
                 </div>
@@ -161,8 +162,12 @@ function MembersScreen({ go, tripId }) {
                     {bal>0?'+':bal<0?'−':''}{fmtBase(Math.abs(bal), trip)}
                   </div>
                   {!m.isMe && (
-                    <button onClick={() => { if(confirm(`移除 ${m.name}？`)) dispatch({ type:'REMOVE_MEMBER', tripId, memberId: m.id }); }}
-                      style={{ border:0, background:'transparent', color:'var(--ink-3)', fontSize:11, cursor:'pointer', padding:0, marginTop:2 }}>移除</button>
+                    <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:2 }}>
+                      <button onClick={() => dispatch({ type:'SET_ME', tripId, memberId: m.id })}
+                        style={{ border:0, background:'transparent', color:'var(--accent,#7c6f64)', fontSize:11, cursor:'pointer', padding:0 }}>這是我</button>
+                      <button onClick={() => { if(confirm(`移除 ${m.name}？`)) dispatch({ type:'REMOVE_MEMBER', tripId, memberId: m.id }); }}
+                        style={{ border:0, background:'transparent', color:'var(--ink-3)', fontSize:11, cursor:'pointer', padding:0 }}>移除</button>
+                    </div>
                   )}
                 </div>
               </div>

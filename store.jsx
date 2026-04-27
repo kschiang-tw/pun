@@ -105,28 +105,28 @@ function reducer(state, action) {
     // Firestore → local: upsert a single trip
     case 'SET_TRIP': {
       const { _by, _at, _sid, ...trip } = a.trip;
-      // Preserve local isMe when receiving remote update
       const existing = state.trips[trip.id];
-      if (existing) {
-        const meId = existing.members?.find(m => m.isMe)?.id;
-        // Only rebuild members array if isMe flags actually need changing.
-        // IMPORTANT: avoid { ...trip, members } when members is unchanged —
-        // that moves the `members` key to the end of the object, changing
-        // JSON.stringify output and causing spurious Firestore writes.
-        let membersChanged = false;
-        const members = (trip.members || existing.members).map(m => {
-          if (!meId) return m;
-          if (m.id === meId && !m.isMe)  { membersChanged = true; return { ...m, isMe: true }; }
-          if (m.id !== meId && m.isMe)   { membersChanged = true; return { ...m, isMe: false }; }
-          return m;
-        });
-        if (!membersChanged) {
-          // Members are already correct — use trip as-is to preserve property order
-          return { ...state, trips: { ...state.trips, [trip.id]: trip } };
-        }
-        return { ...state, trips: { ...state.trips, [trip.id]: { ...trip, members } } };
+      // Priority for "me" identity: localStorage > local state > Firestore data
+      const storedMeId = localStorage.getItem(`pun_me_${trip.id}`);
+      const meId = storedMeId
+        || existing?.members?.find(m => m.isMe)?.id
+        || trip.members?.find(m => m.isMe)?.id;
+      if (!meId) return { ...state, trips: { ...state.trips, [trip.id]: trip } };
+      // Only rebuild members array if isMe flags actually need changing.
+      // IMPORTANT: avoid { ...trip, members } when members is unchanged —
+      // that moves the `members` key to the end of the object, changing
+      // JSON.stringify output and causing spurious Firestore writes.
+      let membersChanged = false;
+      const members = (trip.members || []).map(m => {
+        if (m.id === meId && !m.isMe)  { membersChanged = true; return { ...m, isMe: true }; }
+        if (m.id !== meId && m.isMe)   { membersChanged = true; return { ...m, isMe: false }; }
+        return m;
+      });
+      if (!membersChanged) {
+        // Members are already correct — use trip as-is to preserve property order
+        return { ...state, trips: { ...state.trips, [trip.id]: trip } };
       }
-      return { ...state, trips: { ...state.trips, [trip.id]: trip } };
+      return { ...state, trips: { ...state.trips, [trip.id]: { ...trip, members } } };
     }
 
     // Firestore → local: remove a trip (deleted by owner)
@@ -181,6 +181,17 @@ function reducer(state, action) {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, members: t.members.filter(m => m.id !== a.memberId) } } };
+    }
+
+    case 'SET_ME': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      localStorage.setItem(`pun_me_${a.tripId}`, a.memberId);
+      const members = t.members.map(m => {
+        if (m.id === a.memberId) return m.isMe ? m : { ...m, isMe: true };
+        if (m.isMe) return { ...m, isMe: false };
+        return m;
+      });
+      return { ...state, trips: { ...state.trips, [a.tripId]: { ...t, members } } };
     }
 
     case 'SET_RATE': {
