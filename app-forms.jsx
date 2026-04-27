@@ -9,7 +9,7 @@ function AddExpenseScreen({ go, tripId, editId }) {
   const [amount, setAmount] = React.useState(String(editing?.amount || ''));
   const [ccy, setCcy] = React.useState(editing?.ccy || trip?.currencies[0] || 'TWD');
   const [date, setDate] = React.useState(editing?.date || new Date().toISOString().slice(0,10));
-  const [paidBy, setPaidBy] = React.useState(editing?.paidBy || trip?.members[0]?.id);
+  const [paidBy, setPaidBy] = React.useState(editing?.paidBy || (trip?.members.find(m => m.isMe) || trip?.members[0])?.id);
   const [cat, setCat] = React.useState(editing?.cat || 'food');
   const [mode, setMode] = React.useState(editing?.mode || 'equal');
   const [splitData, setSplitData] = React.useState(editing?.splitData ||
