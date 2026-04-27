@@ -6,7 +6,7 @@ const GSI_CLIENT_ID = '70246720877-srg60gr093bhfb081b0ol1f4nrn35h1b.apps.googleu
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen() {
   const [email, setEmail] = React.useState('');
-  const [phase, setPhase] = React.useState('idle'); // idle | sending | sent | error
+  const [phase, setPhase] = React.useState('idle'); // idle | sending | sent | error | google
   const [err,   setErr]   = React.useState('');
 
   // Only PWA standalone mode (added to home screen) cannot use signInWithPopup.
@@ -79,13 +79,17 @@ function LoginScreen() {
   }
 
   async function googleSignIn() {
+    if (phase === 'google') return;
+    setPhase('google');
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
       await firebase.auth().signInWithPopup(provider);
     } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') {
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
         setErr(err.message);
         setPhase('error');
+      } else {
+        setPhase('idle');
       }
     }
   }
@@ -149,7 +153,7 @@ function LoginScreen() {
                 <div ref={gsiButtonRef} />
               </div>
             ) : (
-              <button onClick={googleSignIn} style={{
+              <button onClick={googleSignIn} disabled={phase === 'google'} style={{
                 width: '100%', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: 10,
                 padding: '13px 20px', borderRadius: 14,

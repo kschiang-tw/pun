@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.35 (2026-04-27)
+### 修正
+- Google 登入按鈕重複點擊導致 auth/cancelled-popup-request 錯誤：登入進行中鎖定按鈕，並忽略 cancelled-popup-request 錯誤訊息
+
 ## v2.3.34 (2026-04-27)
 ### 新增
 - 設定頁面加入「備份資料並更新到最新版本」按鈕
