@@ -230,7 +230,9 @@ const ENGINE = (() => {
     const tr = simplify(trip);
     const memberById = Object.fromEntries(trip.members.map(m => [m.id, m.name]));
     const sym = { TWD:'NT$', USD:'$', EUR:'€', JPY:'¥', DKK:'kr', SEK:'kr', THB:'฿' };
-    const fmt = (n) => Math.round(n).toLocaleString('en-US') + ' ' + (sym[trip.baseCurrency] || trip.baseCurrency);
+    const zeroDec = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
+    const maxDec = zeroDec.has(trip.baseCurrency) ? 0 : 2;
+    const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: maxDec }) + ' ' + (sym[trip.baseCurrency] || trip.baseCurrency);
     const lines = [];
     lines.push(`【${trip.title}】結算`);
     lines.push(`${trip.startDate} – ${trip.endDate} · ${trip.members.length} 人`);

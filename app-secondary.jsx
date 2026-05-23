@@ -581,8 +581,8 @@ function ExportScreen({ go, tripId }) {
                   {e.title}<span style={{ color:'var(--ink-3)', marginLeft:4 }}>· {memberById[e.paidBy]?.name||'?'}</span>
                 </span>
                 <span style={{ textAlign:'right', color:'var(--ink-3)' }}>{e.ccy}</span>
-                <span style={{ textAlign:'right', fontFamily:'var(--font-num)' }}>{Math.round(e.amount).toLocaleString()}</span>
-                <span style={{ textAlign:'right', fontFamily:'var(--font-sans)', fontWeight:600 }}>{Math.round(ENGINE.toBase(e.amount, e.ccy, trip.rates)).toLocaleString()}</span>
+                <span style={{ textAlign:'right', fontFamily:'var(--font-num)' }}>{e.amount.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits: ccyMaxDecimals(e.ccy) })}</span>
+                <span style={{ textAlign:'right', fontFamily:'var(--font-sans)', fontWeight:600 }}>{ENGINE.toBase(e.amount, e.ccy, trip.rates).toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits: ccyMaxDecimals(trip.baseCurrency) })}</span>
               </div>
             ))}
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:6, paddingTop:8, marginTop:4, borderTop:'1px solid #e8e1d4' }}>

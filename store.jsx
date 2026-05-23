@@ -598,11 +598,17 @@ function useTrip(id) {
 const CCY_SYMBOL = { TWD:'NT$', USD:'$', EUR:'€', JPY:'¥', DKK:'kr', SEK:'kr',
   NOK:'kr', THB:'฿', GBP:'£', KRW:'₩', CNY:'¥', HKD:'HK$', SGD:'S$' };
 const CCY_PREFIX = ['TWD','USD','EUR','GBP','HKD','SGD','THB','JPY','CNY','KRW'];
+const CCY_ZERO_DECIMALS = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
+
+function ccyMaxDecimals(ccy) { return CCY_ZERO_DECIMALS.has(ccy) ? 0 : 2; }
 
 function fmtMoney(n, ccy) {
   const sym = CCY_SYMBOL[ccy] || '';
   const sign = n < 0 ? '−' : '';
-  const v = Math.abs(Math.round(n)).toLocaleString('en-US');
+  const v = Math.abs(n).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: ccyMaxDecimals(ccy),
+  });
   return CCY_PREFIX.includes(ccy) ? `${sign}${sym}${v}` : `${sign}${v} ${sym}`;
 }
 function fmtBase(n, trip) { return fmtMoney(n, trip.baseCurrency); }
@@ -614,5 +620,6 @@ window.useTripActions = useTripActions;
 window.useTrip        = useTrip;
 window.fmtMoney       = fmtMoney;
 window.fmtBase        = fmtBase;
+window.ccyMaxDecimals = ccyMaxDecimals;
 window.CCY_SYMBOL     = CCY_SYMBOL;
 window.uid            = uid;

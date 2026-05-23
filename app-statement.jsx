@@ -1,5 +1,12 @@
 // app-statement.jsx — Per-member formal PDF statement
 
+function fmtAmt(n, ccy) {
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: ccyMaxDecimals(ccy),
+  });
+}
+
 function StatementScreen({ go, tripId }) {
   const trip = useTrip(tripId);
   const [memberId, setMemberId] = React.useState(
@@ -113,10 +120,10 @@ function StatementScreen({ go, tripId }) {
                           {r.paidByName}
                           {r.paidByMe && <span style={{ fontSize:8, color:'#2d6a3a', marginLeft:3, fontWeight:600 }}>(你付)</span>}
                         </td>
-                        <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)'}}>{Math.round(r.amount).toLocaleString()}</td>
+                        <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)'}}>{fmtAmt(r.amount, group.ccy)}</td>
                         <td style={{...tdStyle, textAlign:'right', fontSize:9, color:'#666'}}>{r.modeLabel}</td>
                         <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600}}>
-                          {r.share > 0 ? Math.round(r.share).toLocaleString() : '—'}
+                          {r.share > 0 ? fmtAmt(r.share, group.ccy) : '—'}
                         </td>
                       </tr>
                     ))}
@@ -124,9 +131,9 @@ function StatementScreen({ go, tripId }) {
                   <tfoot>
                     <tr style={{ borderTop:'1px solid #1d1d1d' }}>
                       <td colSpan={3} style={{...tdStyle, fontWeight:600}}>小計 / SUBTOTAL ({group.ccy})</td>
-                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600}}>{Math.round(group.totalAmount).toLocaleString()}</td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600}}>{fmtAmt(group.totalAmount, group.ccy)}</td>
                       <td style={tdStyle}/>
-                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:700}}>{Math.round(group.totalShare).toLocaleString()}</td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:700}}>{fmtAmt(group.totalShare, group.ccy)}</td>
                     </tr>
                     <tr>
                       <td colSpan={5} style={{...tdStyle, fontSize:9, color:'#666'}}>換算 {trip.baseCurrency} (× {ENGINE.round2(trip.rates[group.ccy] || 1)})</td>
