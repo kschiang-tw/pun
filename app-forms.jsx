@@ -305,9 +305,9 @@ function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
           </div>
         ))}
         <div style={{ padding: '8px 0', display: 'flex', justifyContent: 'space-between', borderTop: '0.5px solid var(--hairline)' }}>
-          <span className="t-meta">合計</span>
-          <span className="t-amount tabular" style={{ color: Math.abs(sum - amount) < 0.01 ? 'var(--sage-deep)' : 'var(--neg)', fontWeight: 600 }}>
-            {fmtMoney(sum, ccy)} / {fmtMoney(amount, ccy)}{Math.abs(sum - amount) < 0.01 ? ' ✓' : ''}
+          <span className="t-meta">剩餘</span>
+          <span className="t-amount tabular" style={{ color: Math.abs(amount - sum) < 0.01 ? 'var(--sage-deep)' : 'var(--neg)', fontWeight: 600 }}>
+            {fmtMoney(amount - sum, ccy)}{Math.abs(amount - sum) < 0.01 ? ' ✓' : ''}
           </span>
         </div>
       </div>
@@ -385,9 +385,9 @@ function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
         );
       })}
       <div style={{ padding: '8px 0', display: 'flex', justifyContent: 'space-between', borderTop: '0.5px solid var(--hairline)' }}>
-        <span className="t-meta">合計</span>
+        <span className="t-meta">剩餘</span>
         <span className="t-amount tabular" style={{ color: sum === 100 ? 'var(--sage-deep)' : 'var(--neg)', fontWeight: 600 }}>
-          {sum}% {sum === 100 ? '✓' : ''}
+          {100 - sum}% {sum === 100 ? '✓' : ''}
         </span>
       </div>
     </div>
