@@ -250,6 +250,9 @@ function Calculator({ expr, setExpr, onResult }) {
 function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
   const ids = splitData.participants?.length ? splitData.participants : members.map(m => m.id);
   const update = (patch) => setSplitData({ ...splitData, ...patch });
+  const [calcOpen, setCalcOpen] = React.useState(false);
+  const [calcExpr, setCalcExpr] = React.useState('');
+  const [calcTarget, setCalcTarget] = React.useState(null);
 
   if (mode === 'equal') {
     const each = ids.length ? amount / ids.length : 0;
@@ -285,32 +288,78 @@ function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
   if (mode === 'exact') {
     const cur = splitData.exact || {};
     const sum = members.reduce((s, m) => s + (+cur[m.id] || 0), 0);
+    const targetId = calcTarget && members.some(m => m.id === calcTarget) ? calcTarget : members[0]?.id;
+    const targetName = members.find(m => m.id === targetId)?.name || '';
     return (
-      <div className="card" style={{ padding: '4px 14px' }}>
-        {members.map((m, i) => (
-          <div key={m.id} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
-            borderBottom: i === members.length-1 ? 0 : '0.5px solid var(--hairline)',
-          }}>
-            <Avatar member={m} size={28}/>
-            <div className="t-body" style={{ flex: 1, fontSize: 14 }}>{m.name}</div>
-            <input value={cur[m.id] ?? ''} onChange={e => update({ exact: { ...cur, [m.id]: e.target.value } })}
-              inputMode="decimal" placeholder="0" style={{
-                width: 90, border: '0.5px solid var(--hairline-strong)', borderRadius: 10,
-                padding: '5px 10px', textAlign: 'right', background: 'var(--bg-2)',
-                color: 'var(--ink)', outline: 'none', fontFamily: 'var(--font-num)',
-                fontVariantNumeric: 'tabular-nums', fontSize: 14, fontWeight: 500,
-              }}/>
-            <span className="t-meta" style={{ width: 30, fontSize: 11 }}>{ccy}</span>
+      <>
+        <div className="card" style={{ padding: '4px 14px' }}>
+          {members.map((m, i) => (
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
+              borderBottom: i === members.length-1 ? 0 : '0.5px solid var(--hairline)',
+            }}>
+              <Avatar member={m} size={28}/>
+              <div className="t-body" style={{ flex: 1, fontSize: 14 }}>{m.name}</div>
+              <input value={cur[m.id] ?? ''} onChange={e => update({ exact: { ...cur, [m.id]: e.target.value } })}
+                onFocus={() => setCalcTarget(m.id)}
+                inputMode="decimal" placeholder="0" style={{
+                  width: 90, border: '0.5px solid var(--hairline-strong)', borderRadius: 10,
+                  padding: '5px 10px', textAlign: 'right', background: 'var(--bg-2)',
+                  color: 'var(--ink)', outline: 'none', fontFamily: 'var(--font-num)',
+                  fontVariantNumeric: 'tabular-nums', fontSize: 14, fontWeight: 500,
+                }}/>
+              <span className="t-meta" style={{ width: 30, fontSize: 11 }}>{ccy}</span>
+            </div>
+          ))}
+          <div style={{ padding: '8px 0', display: 'flex', justifyContent: 'space-between', borderTop: '0.5px solid var(--hairline)' }}>
+            <span className="t-meta">剩餘</span>
+            <span className="t-amount tabular" style={{ color: Math.abs(amount - sum) < 0.01 ? 'var(--sage-deep)' : 'var(--neg)', fontWeight: 600 }}>
+              {fmtMoney(amount - sum, ccy)}{Math.abs(amount - sum) < 0.01 ? ' ✓' : ''}
+            </span>
           </div>
-        ))}
-        <div style={{ padding: '8px 0', display: 'flex', justifyContent: 'space-between', borderTop: '0.5px solid var(--hairline)' }}>
-          <span className="t-meta">剩餘</span>
-          <span className="t-amount tabular" style={{ color: Math.abs(amount - sum) < 0.01 ? 'var(--sage-deep)' : 'var(--neg)', fontWeight: 600 }}>
-            {fmtMoney(amount - sum, ccy)}{Math.abs(amount - sum) < 0.01 ? ' ✓' : ''}
-          </span>
         </div>
-      </div>
+
+        {/* Bottom calculator — fills the selected member's amount */}
+        <div style={{ marginTop: 8 }}>
+          <button onClick={() => setCalcOpen(!calcOpen)} style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            height: 40, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+            background: calcOpen ? 'var(--clay-soft)' : 'var(--surface)',
+            color: calcOpen ? 'var(--clay-deep)' : 'var(--ink-2)',
+            border: calcOpen ? '0.5px solid color-mix(in oklch, var(--clay-deep) 35%, transparent)' : '0.5px solid var(--hairline)',
+          }}>
+            <Icon.calc width={16} height={16}/>
+            {calcOpen ? '收起計算機' : '用計算機分帳'}
+          </button>
+          {calcOpen && (
+            <div className="card" style={{ marginTop: 8, padding: 10, borderRadius: 16, background: 'color-mix(in oklch, var(--bg-2) 70%, transparent)' }}>
+              <div className="t-cap" style={{ marginBottom: 8 }}>填入給</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                {members.map(m => {
+                  const on = m.id === targetId;
+                  return (
+                    <button key={m.id} onClick={() => setCalcTarget(m.id)} style={{
+                      display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px 4px 4px',
+                      borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
+                      background: on ? 'var(--clay-soft)' : 'var(--surface)',
+                      color: on ? 'var(--clay-deep)' : 'var(--ink-2)',
+                      border: on ? '0.5px solid color-mix(in oklch, var(--clay-deep) 35%, transparent)' : '0.5px solid var(--hairline)',
+                    }}>
+                      <Avatar member={m} size={22}/>
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <Calculator expr={calcExpr} setExpr={setCalcExpr}
+                onResult={v => update({ exact: { ...cur, [targetId]: String(v) } })}/>
+              <div className="t-meta" style={{ textAlign: 'center', marginTop: 8, fontSize: 11 }}>
+                按 = 把結果填入「{targetName}」
+              </div>
+            </div>
+          )}
+        </div>
+      </>
     );
   }
 
