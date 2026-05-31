@@ -144,13 +144,13 @@ function AddExpenseScreen({ go, tripId, editId }) {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <FormRow label="日期">
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              style={{ border: 0, background: 'transparent', color: 'var(--ink-2)', fontFamily: 'inherit', fontSize: 14, outline: 'none', cursor: 'pointer' }}/>
+              style={{ border: 0, background: 'transparent', color: 'var(--ink-2)', fontFamily: 'inherit', fontSize: 16, outline: 'none', cursor: 'pointer' }}/>
           </FormRow>
           <FormRow label="付款人">
             {!multiPay ? (
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
-                  style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:14, cursor:'pointer', appearance:'none', WebkitAppearance:'none' }}>
+                  style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:16, cursor:'pointer', appearance:'none', WebkitAppearance:'none' }}>
                   {trip.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
                 {trip.members.length > 1 && (
@@ -199,7 +199,7 @@ function AddExpenseScreen({ go, tripId, editId }) {
                     width:90, border:'0.5px solid var(--hairline-strong)', borderRadius:10,
                     padding:'5px 10px', textAlign:'right', background:'var(--bg-2)',
                     color:'var(--ink)', outline:'none', fontFamily:'var(--font-num)',
-                    fontVariantNumeric:'tabular-nums', fontSize:14, fontWeight:500,
+                    fontVariantNumeric:'tabular-nums', fontSize:16, fontWeight:500,
                   }}/>
                 <span className="t-meta" style={{ width:30, fontSize:11 }}>{ccy}</span>
               </div>
@@ -374,7 +374,7 @@ function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
                   width: 90, border: '0.5px solid var(--hairline-strong)', borderRadius: 10,
                   padding: '5px 10px', textAlign: 'right', background: 'var(--bg-2)',
                   color: 'var(--ink)', outline: 'none', fontFamily: 'var(--font-num)',
-                  fontVariantNumeric: 'tabular-nums', fontSize: 14, fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums', fontSize: 16, fontWeight: 500,
                 }}/>
               <span className="t-meta" style={{ width: 30, fontSize: 11 }}>{ccy}</span>
             </div>
@@ -487,7 +487,7 @@ function SplitEditor({ mode, amount, ccy, members, splitData, setSplitData }) {
                   width: 54, border: '0.5px solid var(--hairline-strong)', borderRadius: 10,
                   padding: '5px 8px', textAlign: 'right', background: 'var(--bg-2)',
                   color: 'var(--ink)', outline: 'none', fontFamily: 'var(--font-num)',
-                  fontVariantNumeric: 'tabular-nums', fontSize: 14, fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums', fontSize: 16, fontWeight: 500,
                 }}/>
               <span className="t-meta" style={{ width: 12, fontSize: 11 }}>%</span>
             </div>
