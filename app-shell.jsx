@@ -343,7 +343,10 @@ function NotificationSheet({ go, onClose }) {
         <div style={{ overflowY: 'auto', flex: 1, margin: '0 -4px' }}>
           {notifications.length === 0 ? (
             <div style={{ padding: '48px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.2 }}>🔔</div>
+              <div style={{ marginBottom: 12, opacity: 0.3, color: 'var(--ink-3)',
+                display: 'flex', justifyContent: 'center' }}>
+                <Icon.bell width={44} height={44}/>
+              </div>
               <div className="t-meta" style={{ fontSize: 14, color: 'var(--ink-3)' }}>目前沒有通知</div>
             </div>
           ) : (
