@@ -207,18 +207,19 @@ function buildStatement(trip, memberId) {
   for (const e of trip.expenses) {
     const shares = ENGINE.computeShares(e, trip.members);
     const myShare = shares[memberId] || 0;
-    if (myShare === 0 && e.paidBy !== memberId) continue;
+    const payers = ENGINE.paidByMap(e);
+    if (myShare === 0 && !payers[memberId]) continue;
 
     const rate = trip.rates[e.ccy] || 1;
     totalShareBase += myShare * rate;
-    if (e.paidBy === memberId) totalPaidBase += e.amount * rate;
+    if (payers[memberId]) totalPaidBase += (payers[memberId] || 0) * rate;
 
     if (!groups[e.ccy]) groups[e.ccy] = { ccy: e.ccy, rows: [], totalAmount: 0, totalShare: 0 };
     groups[e.ccy].rows.push({
       id: e.id, date: e.date, title: e.title, note: e.note || '',
       amount: e.amount, share: myShare,
-      paidByName: memberById[e.paidBy]?.name || '?',
-      paidByMe: e.paidBy === memberId,
+      paidByName: Object.entries(payers).filter(([,a])=>a>0).map(([id])=>memberById[id]?.name||'?').join('、'),
+      paidByMe: !!(payers[memberId] > 0),
       modeLabel: modeLabels[e.mode] || e.mode,
     });
     groups[e.ccy].totalAmount += e.amount;

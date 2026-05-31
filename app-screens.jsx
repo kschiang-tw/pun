@@ -129,7 +129,10 @@ function TripScreen({ go, tripId }) {
                     {e.title}
                   </div>
                   <div className="t-meta" style={{ marginTop: 2, fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {trip.members.find(m => m.id === e.paidBy)?.name || '?'} 付 ·
+                    {typeof e.paidBy === 'string'
+                      ? (trip.members.find(m => m.id === e.paidBy)?.name || '?')
+                      : Object.entries(e.paidBy).filter(([,a]) => a > 0).map(([id]) => trip.members.find(m => m.id === id)?.name || '?').join('、')
+                    } 付 ·
                     <SplitBadge type={e.mode}/>
                   </div>
                 </div>

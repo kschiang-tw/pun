@@ -5,11 +5,21 @@ function AddExpenseScreen({ go, tripId, editId }) {
   const [, dispatch] = useStore();
   const editing = editId ? trip?.expenses.find(e => e.id === editId) : null;
 
+  const isEditingMulti = !!(editing && typeof editing.paidBy === 'object' && Object.keys(editing.paidBy).length > 1);
+  const defaultSinglePayer = editing
+    ? (typeof editing.paidBy === 'string' ? editing.paidBy : Object.keys(editing.paidBy)[0])
+    : (trip?.members.find(m => m.isMe) || trip?.members[0])?.id;
+
   const [title, setTitle] = React.useState(editing?.title || '');
   const [amount, setAmount] = React.useState(String(editing?.amount || ''));
   const [ccy, setCcy] = React.useState(editing?.ccy || trip?.currencies[0] || 'TWD');
   const [date, setDate] = React.useState(editing?.date || new Date().toISOString().slice(0,10));
-  const [paidBy, setPaidBy] = React.useState(editing?.paidBy || (trip?.members.find(m => m.isMe) || trip?.members[0])?.id);
+  const [paidBy, setPaidBy] = React.useState(defaultSinglePayer);
+  const [multiPay, setMultiPay] = React.useState(isEditingMulti);
+  const [payAmounts, setPayAmounts] = React.useState(() => {
+    if (isEditingMulti) return Object.fromEntries(Object.entries(editing.paidBy).map(([k,v]) => [k, String(v)]));
+    return {};
+  });
   const [cat, setCat] = React.useState(editing?.cat || 'food');
   const [mode, setMode] = React.useState(editing?.mode || 'equal');
   const [splitData, setSplitData] = React.useState(editing?.splitData ||
@@ -21,6 +31,10 @@ function AddExpenseScreen({ go, tripId, editId }) {
   if (!trip) return null;
 
   const numAmount = ENGINE.calc(amount) || +amount || 0;
+  const paySum = multiPay ? ENGINE.round2(trip?.members.reduce((s, m) => {
+    return s + (ENGINE.calc(payAmounts[m.id] || '') || +(payAmounts[m.id] || 0));
+  }, 0) || 0) : 0;
+  const payRemaining = ENGINE.round2(numAmount - paySum);
 
   React.useEffect(() => {
     if (ccy && trip && !trip.currencies.includes(ccy)) {
@@ -30,7 +44,19 @@ function AddExpenseScreen({ go, tripId, editId }) {
 
   const save = () => {
     if (!title.trim() || numAmount <= 0) { alert('請輸入名稱與金額'); return; }
-    const expense = { title: title.trim(), amount: numAmount, ccy, date, paidBy, cat, mode, splitData, note };
+    let finalPaidBy;
+    if (multiPay) {
+      const obj = {};
+      trip.members.forEach(m => {
+        const v = ENGINE.round2(ENGINE.calc(payAmounts[m.id] || '') || +(payAmounts[m.id] || 0));
+        if (v > 0) obj[m.id] = v;
+      });
+      if (Object.keys(obj).length === 0) { alert('請輸入付款金額'); return; }
+      finalPaidBy = obj;
+    } else {
+      finalPaidBy = paidBy;
+    }
+    const expense = { title: title.trim(), amount: numAmount, ccy, date, paidBy: finalPaidBy, cat, mode, splitData, note };
     if (editing) {
       dispatch({ type: 'UPDATE_EXPENSE', tripId, id: editing.id, patch: expense });
     } else {
@@ -121,10 +147,24 @@ function AddExpenseScreen({ go, tripId, editId }) {
               style={{ border: 0, background: 'transparent', color: 'var(--ink-2)', fontFamily: 'inherit', fontSize: 14, outline: 'none', cursor: 'pointer' }}/>
           </FormRow>
           <FormRow label="付款人">
-            <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
-              style={{ border: 0, background: 'transparent', color: 'var(--ink-2)', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer', appearance: 'none' }}>
-              {trip.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            {!multiPay ? (
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
+                  style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:14, cursor:'pointer', appearance:'none', WebkitAppearance:'none' }}>
+                  {trip.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                {trip.members.length > 1 && (
+                  <button onClick={() => {
+                    const init = {};
+                    trip.members.forEach(m => { init[m.id] = m.id === paidBy ? String(numAmount) : ''; });
+                    setPayAmounts(init);
+                    setMultiPay(true);
+                  }} style={{ fontSize:11, padding:'2px 8px', borderRadius:999, border:'0.5px solid var(--hairline-strong)', background:'var(--bg-2)', color:'var(--ink-3)', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>+多人</button>
+                )}
+              </div>
+            ) : (
+              <button onClick={() => setMultiPay(false)} style={{ fontSize:11, padding:'2px 8px', borderRadius:999, border:'0.5px solid color-mix(in oklch, var(--clay-deep) 35%, transparent)', background:'var(--clay-soft)', color:'var(--clay-deep)', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>多人付款 ✕</button>
+            )}
           </FormRow>
           <FormRow label="分類" last>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -145,6 +185,34 @@ function AddExpenseScreen({ go, tripId, editId }) {
           </FormRow>
         </div>
       </div>
+
+      {/* Multi-payer amounts */}
+      {multiPay && (
+        <div style={{ padding:'8px 16px 0' }}>
+          <div className="card" style={{ padding:'4px 14px' }}>
+            {trip.members.map((m, i) => (
+              <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom: i===trip.members.length-1?0:'0.5px solid var(--hairline)' }}>
+                <Avatar member={m} size={28}/>
+                <div className="t-body" style={{ flex:1, fontSize:14 }}>{m.name}</div>
+                <input value={payAmounts[m.id] ?? ''} onChange={e => setPayAmounts({ ...payAmounts, [m.id]: e.target.value })}
+                  inputMode="decimal" placeholder="0" style={{
+                    width:90, border:'0.5px solid var(--hairline-strong)', borderRadius:10,
+                    padding:'5px 10px', textAlign:'right', background:'var(--bg-2)',
+                    color:'var(--ink)', outline:'none', fontFamily:'var(--font-num)',
+                    fontVariantNumeric:'tabular-nums', fontSize:14, fontWeight:500,
+                  }}/>
+                <span className="t-meta" style={{ width:30, fontSize:11 }}>{ccy}</span>
+              </div>
+            ))}
+            <div style={{ padding:'8px 0', display:'flex', justifyContent:'space-between', borderTop:'0.5px solid var(--hairline)' }}>
+              <span className="t-meta">剩餘</span>
+              <span className="t-amount tabular" style={{ color: Math.abs(payRemaining)<0.01?'var(--sage-deep)':'var(--neg)', fontWeight:600 }}>
+                {fmtMoney(payRemaining, ccy)}{Math.abs(payRemaining)<0.01?' ✓':''}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Split mode */}
       <div style={{ padding: '20px 20px 0' }}>

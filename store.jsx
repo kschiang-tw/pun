@@ -103,12 +103,11 @@ function perspectiveExpense(trip, meId, e) {
     return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
   const shares = ENGINE.computeShares(e, trip.members || []);
   const myShare = +(shares[meId] || 0);
-  if (e.paidBy === meId) {
-    const lent = ENGINE.round2(e.amount - myShare);
-    if (lent > 0.005) return { tone: 'pos', amountText: `你借出 ${fmtMoney(lent, ccy)}` };
-    return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
-  }
-  if (myShare > 0.005) return { tone: 'neg', amountText: `你欠 ${fmtMoney(myShare, ccy)}` };
+  const payers = ENGINE.paidByMap(e);
+  const myPaid = +(payers[meId] || 0);
+  const net = ENGINE.round2(myPaid - myShare);
+  if (net > 0.005) return { tone: 'pos', amountText: `你借出 ${fmtMoney(net, ccy)}` };
+  if (net < -0.005) return { tone: 'neg', amountText: `你欠 ${fmtMoney(-net, ccy)}` };
   return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
 }
 
