@@ -112,9 +112,11 @@ function fmtSyncTime(ts) {
 function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
   const { user, lastSyncAt } = useAuth();
+  const { unreadCount } = useNotifications();
   const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
   const [showAbout, setShowAbout] = React.useState(false);
   const [showJoin,  setShowJoin]  = React.useState(false);
+  const [showNotif, setShowNotif] = React.useState(false);
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -123,6 +125,21 @@ function HomeScreen({ go }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div className="t-display" style={{ fontSize: 34 }}>旅程</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Notifications */}
+            <button onClick={() => setShowNotif(true)} title="通知"
+              style={{ position: 'relative', width: 36, height: 36, borderRadius: '50%', border: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', background: 'var(--surface)', color: 'var(--ink-2)' }}>
+              <Icon.bell width={18} height={18}/>
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16,
+                  padding: '0 4px', borderRadius: 999, background: 'var(--neg, #d9534f)',
+                  color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: '16px',
+                  textAlign: 'center', boxShadow: '0 0 0 2px var(--bg)',
+                }}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
+            </button>
             {/* Join trip */}
             <button onClick={() => setShowJoin(true)} title="加入旅程"
               style={{ width: 36, height: 36, borderRadius: '50%', border: 0,
@@ -252,6 +269,113 @@ function HomeScreen({ go }) {
 
       {showAbout && <AboutSheet onClose={() => setShowAbout(false)}/>}
       {showJoin  && <JoinSheet  onClose={() => setShowJoin(false)}/>}
+      {showNotif && <NotificationSheet go={go} onClose={() => setShowNotif(false)}/>}
+    </div>
+  );
+}
+
+// ─── Notification center ─────────────────────────────────────
+function fmtNotifTime(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60)    return '剛剛';
+  if (diff < 3600)  return `${Math.floor(diff / 60)} 分鐘前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小時前`;
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function NotificationSheet({ go, onClose }) {
+  const { notifications, markAllNotifsRead, clearNotifs, notifPermission, requestNotifPermission } = useNotifications();
+
+  // Mark everything read shortly after opening so the badge clears.
+  React.useEffect(() => {
+    const t = setTimeout(markAllNotifsRead, 600);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line
+
+  const openTrip = (n) => { onClose(); go('trip', { tripId: n.tripId }); };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400 }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)' }}/>
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        background: 'var(--bg)', borderRadius: '20px 20px 0 0',
+        padding: `24px 20px max(24px, env(safe-area-inset-bottom, 24px))`,
+        maxHeight: '82svh', display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="t-display" style={{ fontSize: 22 }}>通知</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {notifications.length > 0 && (
+              <button onClick={clearNotifs} style={{
+                border: 0, background: 'transparent', color: 'var(--ink-3)',
+                fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: '6px 8px',
+              }}>清除全部</button>
+            )}
+            <button onClick={onClose} style={{ border: 0, background: 'var(--surface)', color: 'var(--ink-2)', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          </div>
+        </div>
+
+        {/* Permission prompt */}
+        {notifPermission !== 'granted' && notifPermission !== 'unsupported' && (
+          <button onClick={requestNotifPermission} style={{
+            border: '0.5px solid var(--hairline)', background: 'var(--surface)',
+            borderRadius: 12, padding: '12px 14px', marginBottom: 14, cursor: 'pointer',
+            fontFamily: 'inherit', textAlign: 'left', width: '100%',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <Icon.bell width={18} height={18}/>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>開啟推播通知</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 2, lineHeight: 1.5 }}>
+                旅程有新紀錄時，App 開啟或在背景時會收到系統通知
+              </div>
+            </div>
+          </button>
+        )}
+        {notifPermission === 'unsupported' && (
+          <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 14, lineHeight: 1.5 }}>
+            此瀏覽器不支援系統通知，但仍可在此查看新紀錄。
+          </div>
+        )}
+
+        <div style={{ overflowY: 'auto', flex: 1, margin: '0 -4px' }}>
+          {notifications.length === 0 ? (
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.2 }}>🔔</div>
+              <div className="t-meta" style={{ fontSize: 14, color: 'var(--ink-3)' }}>目前沒有通知</div>
+            </div>
+          ) : (
+            notifications.map(n => (
+              <button key={n.id} onClick={() => openTrip(n)} style={{
+                width: '100%', textAlign: 'left', border: 0, cursor: 'pointer',
+                background: n.read ? 'transparent' : 'var(--surface)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 6,
+                display: 'flex', gap: 12, alignItems: 'flex-start', fontFamily: 'inherit',
+              }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                  background: 'var(--surface)', color: 'var(--ink-2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {React.createElement(n.kind === 'loan' ? Icon.swap : Icon.receipt, { width: 18, height: 18 })}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.tripTitle}</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-4)', flexShrink: 0 }}>{fmtNotifTime(n.ts)}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>{n.body}</div>
+                </div>
+                {!n.read && (
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--neg, #d9534f)', flexShrink: 0, marginTop: 4 }}/>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

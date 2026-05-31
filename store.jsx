@@ -51,6 +51,67 @@ function everHadTrips() {
   try { return !!localStorage.getItem(EVER_HAD_TRIPS_KEY); } catch { return false; }
 }
 
+// ── Notifications (in-app notification center + local push) ───────────────────
+const NOTIFS_KEY        = 'pun_notifications';
+const NOTIF_ENABLED_KEY = 'pun_notif_enabled';
+const NOTIF_MAX         = 60;
+
+function loadNotifs() {
+  try { return JSON.parse(localStorage.getItem(NOTIFS_KEY) || '[]'); } catch { return []; }
+}
+function saveNotifs(list) {
+  try { localStorage.setItem(NOTIFS_KEY, JSON.stringify(list.slice(0, NOTIF_MAX))); } catch {}
+}
+function notifEnabled() {
+  try { return localStorage.getItem(NOTIF_ENABLED_KEY) === '1'; } catch { return false; }
+}
+function setNotifEnabled(v) {
+  try { localStorage.setItem(NOTIF_ENABLED_KEY, v ? '1' : '0'); } catch {}
+}
+
+// Fire a system-level local notification (works while the app/SW is alive).
+// Real background push (app fully closed) would need a server + FCM.
+function fireLocalNotification(n) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  if (!notifEnabled()) return;
+  const opts = {
+    body: n.body, tag: n.id, icon: './icon.svg', badge: './icon.svg',
+    lang: 'zh-Hant', data: { tripId: n.tripId },
+  };
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg && reg.showNotification) reg.showNotification(n.tripTitle, opts);
+        else { try { new Notification(n.tripTitle, opts); } catch {} }
+      }).catch(() => { try { new Notification(n.tripTitle, opts); } catch {} });
+    } else {
+      new Notification(n.tripTitle, opts);
+    }
+  } catch {}
+}
+
+// Compare an old trip snapshot against the incoming one and return the records
+// that are newly added (expenses + loans). Used to surface notifications.
+function diffNewRecords(oldTrip, newTrip) {
+  const out = [];
+  const memberName = id => (newTrip.members || []).find(m => m.id === id)?.name || '某人';
+  const oldExp = new Set((oldTrip.expenses || []).map(e => e.id));
+  (newTrip.expenses || []).forEach(e => {
+    if (oldExp.has(e.id)) return;
+    const title = e.title || '支出';
+    out.push({
+      kind: 'expense', recordId: e.id, title,
+      body: `${memberName(e.paidBy)} 新增了支出「${title}」 ${fmtMoney(e.amount, e.ccy)}`,
+    });
+  });
+  const oldLoan = new Set((oldTrip.loans || []).map(l => l.id));
+  (newTrip.loans || []).forEach(l => {
+    if (oldLoan.has(l.id)) return;
+    out.push({ kind: 'loan', recordId: l.id, title: '借貸', body: '新增了一筆借貸記錄' });
+  });
+  return out;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -275,6 +336,7 @@ function reducer(state, action) {
 const StoreCtx  = React.createContext(null);
 const AuthCtx   = React.createContext({ user: null, authLoading: true });
 const TripActCtx = React.createContext({});
+const NotifCtx  = React.createContext({ notifications: [], unreadCount: 0 });
 
 // ── StoreProvider ─────────────────────────────────────────────────────────────
 function StoreProvider({ children }) {
@@ -288,6 +350,43 @@ function StoreProvider({ children }) {
   const dirtyIds  = React.useRef(new Set()); // trip IDs modified by user actions (need Firestore write)
   const stateRef  = React.useRef(state);     // always points to latest state (for use inside async callbacks)
   React.useEffect(() => { stateRef.current = state; });
+
+  // ── Notification center state ──────────────────────────────────────────────
+  const [notifications, setNotifications] = React.useState(loadNotifs);
+  const [notifPermission, setNotifPermission] = React.useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
+
+  const addNotifications = React.useCallback((items) => {
+    if (!items || !items.length) return;
+    setNotifications(prev => {
+      const next = [...items, ...prev].slice(0, NOTIF_MAX);
+      saveNotifs(next);
+      return next;
+    });
+    items.forEach(fireLocalNotification);
+  }, []);
+
+  const markAllNotifsRead = React.useCallback(() => {
+    setNotifications(prev => {
+      if (!prev.some(n => !n.read)) return prev;
+      const next = prev.map(n => n.read ? n : { ...n, read: true });
+      saveNotifs(next);
+      return next;
+    });
+  }, []);
+
+  const clearNotifs = React.useCallback(() => {
+    setNotifications([]); saveNotifs([]);
+  }, []);
+
+  const requestNotifPermission = React.useCallback(async () => {
+    if (typeof Notification === 'undefined') return 'unsupported';
+    let p = Notification.permission;
+    if (p === 'default') { try { p = await Notification.requestPermission(); } catch { p = Notification.permission; } }
+    setNotifPermission(p);
+    setNotifEnabled(p === 'granted');
+    return p;
+  }, []);
 
   // ── Auth listener + email link handling ──────────────────────────────────
   React.useEffect(() => {
@@ -340,11 +439,28 @@ function StoreProvider({ children }) {
         }
         const data = change.doc.data();
         console.log('[pun] Firestore', change.type, id, '_by:', data._by);
+        // Capture the previously-known version BEFORE we overwrite prevRef, so we
+        // can diff for new records added by other devices/members.
+        const oldTrip = prevRef.current[id];
         // Pre-populate prevRef so the write effect sees prevJSON === currJSON for
         // Firestore-loaded trips and never re-writes them spuriously.
         const { _by, _at, _sid, ...cleanTrip } = data;
         prevRef.current = { ...prevRef.current, [id]: { id, ...cleanTrip } };
         remoteIds.current.add(id);
+        // ── New-record detection → notification center ───────────────────────
+        // Only after initial load, only for changes written by *other* devices
+        // (our own writes echo back with _by === DEVICE_ID), and only for genuine
+        // record additions (join writes use _by 'join:…' and add no expenses).
+        if (initialised && oldTrip && data._by && data._by !== DEVICE_ID) {
+          const news = diffNewRecords(oldTrip, { id, ...cleanTrip });
+          if (news.length) {
+            addNotifications(news.map(n => ({
+              id: uid(), tripId: id, tripTitle: cleanTrip.title || '旅程',
+              kind: n.kind, title: n.title, body: n.body,
+              ts: Date.now(), read: false,
+            })));
+          }
+        }
         localDispatch({ type: 'SET_TRIP', trip: { id, ...data } });
         setTimeout(() => remoteIds.current.delete(id), 500);
         loaded[id] = true;
@@ -574,12 +690,20 @@ function StoreProvider({ children }) {
 
   const tripActions = { shareTrip, joinTripByCode, forceBackup };
 
+  const unreadCount = notifications.reduce((n, x) => n + (x.read ? 0 : 1), 0);
+  const notifApi = {
+    notifications, unreadCount, notifPermission,
+    addNotifications, markAllNotifsRead, clearNotifs, requestNotifPermission,
+  };
+
   return (
     <AuthCtx.Provider value={{ user, authLoading, lastSyncAt }}>
       <TripActCtx.Provider value={tripActions}>
-        <StoreCtx.Provider value={[state, dispatch, tripsReady]}>
-          {children}
-        </StoreCtx.Provider>
+        <NotifCtx.Provider value={notifApi}>
+          <StoreCtx.Provider value={[state, dispatch, tripsReady]}>
+            {children}
+          </StoreCtx.Provider>
+        </NotifCtx.Provider>
       </TripActCtx.Provider>
     </AuthCtx.Provider>
   );
@@ -589,6 +713,7 @@ function StoreProvider({ children }) {
 function useStore()      { return React.useContext(StoreCtx); }
 function useAuth()       { return React.useContext(AuthCtx); }
 function useTripActions(){ return React.useContext(TripActCtx); }
+function useNotifications(){ return React.useContext(NotifCtx); }
 function useTrip(id) {
   const [s] = useStore();
   return s.trips[id || s.activeTripId] || null;
@@ -617,6 +742,7 @@ window.StoreProvider  = StoreProvider;
 window.useStore       = useStore;
 window.useAuth        = useAuth;
 window.useTripActions = useTripActions;
+window.useNotifications = useNotifications;
 window.useTrip        = useTrip;
 window.fmtMoney       = fmtMoney;
 window.fmtBase        = fmtBase;
