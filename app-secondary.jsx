@@ -578,7 +578,7 @@ function ExportScreen({ go, tripId }) {
               <div key={e.id} style={{ display:'grid', gridTemplateColumns:'34px 1fr 28px 60px 56px', gap:6, padding:'5px 0', borderBottom:'0.5px dashed #e8e1d4', fontSize:9.5, alignItems:'baseline' }}>
                 <span>{fmtMD(e.date)}</span>
                 <span style={{ fontFamily:'var(--font-sans)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {e.title}<span style={{ color:'var(--ink-3)', marginLeft:4 }}>· {memberById[e.paidBy]?.name||'?'}</span>
+                  {e.title}<span style={{ color:'var(--ink-3)', marginLeft:4 }}>· {typeof e.paidBy==='string' ? (memberById[e.paidBy]?.name||'?') : Object.entries(e.paidBy).filter(([,a])=>a>0).map(([id])=>memberById[id]?.name||'?').join('/')}</span>
                 </span>
                 <span style={{ textAlign:'right', color:'var(--ink-3)' }}>{e.ccy}</span>
                 <span style={{ textAlign:'right', fontFamily:'var(--font-num)' }}>{e.amount.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits: ccyMaxDecimals(e.ccy) })}</span>
@@ -656,7 +656,9 @@ function ExpenseDetailScreen({ go, tripId, id }) {
   if (!e) { go('trip', { tripId }); return null; }
 
   const splits = ENGINE.computeSplit(e, trip.members);
-  const paidBy = trip.members.find(m => m.id === e.paidBy);
+  const payers = ENGINE.paidByMap(e);
+  const paidByLabel = Object.entries(payers).filter(([,a]) => a > 0)
+    .map(([id]) => trip.members.find(m => m.id === id)?.name || '?').join('、');
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -673,7 +675,7 @@ function ExpenseDetailScreen({ go, tripId, id }) {
           <CatIcon catId={e.cat} size={48}/>
           <div style={{ flex:1 }}>
             <div className="t-display" style={{ fontSize:22, lineHeight:1.2 }}>{e.title}</div>
-            <div className="t-meta" style={{ marginTop:6, fontSize:12 }}>{fmtDate(e.date)} · {paidBy?.name} 付</div>
+            <div className="t-meta" style={{ marginTop:6, fontSize:12 }}>{fmtDate(e.date)} · {paidByLabel} 付</div>
           </div>
         </div>
         <div style={{ marginTop:18, display:'flex', alignItems:'baseline', gap:8 }}>
@@ -699,7 +701,7 @@ function ExpenseDetailScreen({ go, tripId, id }) {
                 <Avatar member={m} size={32}/>
                 <div style={{ flex:1 }}>
                   <div className="t-h" style={{ fontSize:14 }}>{m.name}</div>
-                  {m.id === e.paidBy && <div className="t-meta" style={{ marginTop:2, fontSize:11 }}>付了 {fmtMoney(e.amount, e.ccy)}</div>}
+                  {payers[m.id] > 0 && <div className="t-meta" style={{ marginTop:2, fontSize:11 }}>付了 {fmtMoney(payers[m.id], e.ccy)}</div>}
                 </div>
                 <div className="t-amount tabular" style={{ fontSize:14, fontWeight:600 }}>
                   {owe > 0 ? fmtMoney(owe, e.ccy) : <span style={{ color:'var(--ink-3)' }}>—</span>}

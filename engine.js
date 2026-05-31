@@ -63,8 +63,9 @@ const ENGINE = (() => {
     const { members, expenses, rates, loans = [] } = trip;
     const net = Object.fromEntries(members.map(m => [m.id, 0]));
     for (const e of expenses) {
-      const baseAmt = toBase(e.amount, e.ccy, rates);
-      net[e.paidBy] = (net[e.paidBy] || 0) + baseAmt;
+      for (const [pid, pamt] of Object.entries(paidByMap(e))) {
+        net[pid] = (net[pid] || 0) + toBase(pamt, e.ccy, rates);
+      }
       const shares = computeShares(e, members);
       for (const [id, s] of Object.entries(shares)) {
         const sBase = toBase(s, e.ccy, rates);
@@ -115,7 +116,9 @@ const ENGINE = (() => {
     for (const e of expenses) {
       const b = toBase(e.amount, e.ccy, rates);
       spent += b;
-      paidBy[e.paidBy] = (paidBy[e.paidBy] || 0) + b;
+      for (const [pid, pamt] of Object.entries(paidByMap(e))) {
+        paidBy[pid] = (paidBy[pid] || 0) + toBase(pamt, e.ccy, rates);
+      }
       byCat[e.cat] = (byCat[e.cat] || 0) + b;
     }
     return {
@@ -127,6 +130,11 @@ const ENGINE = (() => {
   }
 
   function round2(n) { return Math.round(n * 100) / 100; }
+
+  // Normalize paidBy: old expenses use string, new multi-payer expenses use { memberId: amount }
+  function paidByMap(e) {
+    return typeof e.paidBy === 'string' ? { [e.paidBy]: e.amount } : (e.paidBy || {});
+  }
 
   function calc(expr) {
     if (!expr) return 0;
@@ -214,7 +222,8 @@ const ENGINE = (() => {
     const sorted = [...trip.expenses].sort((a,b) => a.date.localeCompare(b.date));
     for (const e of sorted) {
       rows.push([
-        e.date, e.title, e.cat, memberById[e.paidBy] || e.paidBy,
+        e.date, e.title, e.cat,
+        Object.entries(paidByMap(e)).filter(([,a]) => a > 0).map(([id,a]) => `${memberById[id]||id}(${a})`).join('/'),
         e.amount, e.ccy, round2(toBase(e.amount, e.ccy, trip.rates)),
         e.mode, e.note || '',
       ]);
@@ -256,7 +265,7 @@ const ENGINE = (() => {
   }
 
   return { computeShares, computeSplit, toBase, netBalances, simplify, totals,
-    byCategory, byDay, toCSV, toShareText, calc, round2 };
+    byCategory, byDay, toCSV, toShareText, calc, round2, paidByMap };
 })();
 
 window.ENGINE = ENGINE;
