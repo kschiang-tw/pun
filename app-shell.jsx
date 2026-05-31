@@ -305,7 +305,7 @@ function NotificationSheet({ go, onClose }) {
         maxHeight: '82svh', display: 'flex', flexDirection: 'column',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div className="t-display" style={{ fontSize: 22 }}>通知</div>
+          <div className="t-display" style={{ fontSize: 22 }}>動態</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {notifications.length > 0 && (
               <button onClick={clearNotifs} style={{
@@ -350,32 +350,56 @@ function NotificationSheet({ go, onClose }) {
               <div className="t-meta" style={{ fontSize: 14, color: 'var(--ink-3)' }}>目前沒有通知</div>
             </div>
           ) : (
-            notifications.map(n => (
-              <button key={n.id} onClick={() => openTrip(n)} style={{
-                width: '100%', textAlign: 'left', border: 0, cursor: 'pointer',
-                background: n.read ? 'transparent' : 'var(--surface)',
-                borderRadius: 12, padding: '12px 14px', marginBottom: 6,
-                display: 'flex', gap: 12, alignItems: 'flex-start', fontFamily: 'inherit',
-              }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                  background: 'var(--surface)', color: 'var(--ink-2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+            notifications.map(n => {
+              const legacy = !n.verb;  // older entries only had a `body` string
+              const iconKey = n.action === 'delete' ? 'trash'
+                : n.action === 'edit' ? 'pencil'
+                : (n.kind === 'loan' ? 'swap' : 'receipt');
+              const toneColor = n.tone === 'pos' ? 'var(--pos)'
+                : n.tone === 'neg' ? 'var(--neg)' : 'var(--ink-3)';
+              const struck = n.action === 'delete';
+              return (
+                <button key={n.id} onClick={() => openTrip(n)} style={{
+                  width: '100%', textAlign: 'left', border: 0, cursor: 'pointer',
+                  background: n.read ? 'transparent' : 'var(--surface)',
+                  borderRadius: 12, padding: '11px 12px', marginBottom: 6,
+                  display: 'flex', gap: 11, alignItems: 'flex-start', fontFamily: 'inherit',
                 }}>
-                  {React.createElement(n.kind === 'loan' ? Icon.swap : Icon.receipt, { width: 18, height: 18 })}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.tripTitle}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-4)', flexShrink: 0 }}>{fmtNotifTime(n.ts)}</span>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0, marginTop: 1,
+                    background: 'var(--surface)', color: 'var(--ink-2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {React.createElement(Icon[iconKey] || Icon.receipt, { width: 18, height: 18 })}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>{n.body}</div>
-                </div>
-                {!n.read && (
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--neg, #d9534f)', flexShrink: 0, marginTop: 4 }}/>
-                )}
-              </button>
-            ))
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {legacy ? (
+                      <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5 }}>{n.body}</div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.45 }}>
+                          <b>{n.actor}</b> {n.verb}
+                        </div>
+                        <div style={{
+                          fontSize: 12.5, marginTop: 2, lineHeight: 1.5, color: 'var(--ink-2)',
+                          textDecoration: struck ? 'line-through' : 'none',
+                          textDecorationColor: struck ? 'var(--ink-4)' : undefined,
+                        }}>
+                          {n.subtitle ? <span>{n.subtitle} · </span> : null}
+                          <span style={{ color: toneColor, fontWeight: 600 }}>{n.amountText}</span>
+                        </div>
+                      </>
+                    )}
+                    <div style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 3 }}>
+                      {n.tripTitle} · {fmtNotifTime(n.ts)}
+                    </div>
+                  </div>
+                  {!n.read && (
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--neg)', flexShrink: 0, marginTop: 6 }}/>
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       </div>

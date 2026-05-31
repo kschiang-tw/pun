@@ -90,25 +90,78 @@ function fireLocalNotification(n) {
   } catch {}
 }
 
-// Compare an old trip snapshot against the incoming one and return the records
-// that are newly added (expenses + loans). Used to surface notifications.
-function diffNewRecords(oldTrip, newTrip) {
+// Which member is "me" in this trip (localStorage override > isMe flag).
+function getMeId(trip) {
+  try { const s = localStorage.getItem('pun_me_' + trip.id); if (s) return s; } catch {}
+  return (trip.members || []).find(m => m.isMe)?.id || null;
+}
+
+// "我的視角" amount line for an expense — 你借出 / 你欠 / 中性總額.
+function perspectiveExpense(trip, meId, e) {
+  const ccy = e.ccy;
+  if (!meId || typeof ENGINE === 'undefined')
+    return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
+  const shares = ENGINE.computeShares(e, trip.members || []);
+  const myShare = +(shares[meId] || 0);
+  if (e.paidBy === meId) {
+    const lent = ENGINE.round2(e.amount - myShare);
+    if (lent > 0.005) return { tone: 'pos', amountText: `你借出 ${fmtMoney(lent, ccy)}` };
+    return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
+  }
+  if (myShare > 0.005) return { tone: 'neg', amountText: `你欠 ${fmtMoney(myShare, ccy)}` };
+  return { tone: 'neutral', amountText: fmtMoney(e.amount, ccy) };
+}
+
+// "我的視角" amount line for a loan (from = 借出方 / to = 借入方).
+function perspectiveLoan(trip, meId, l) {
+  const ccy = l.ccy;
+  if (meId && l.from === meId) return { tone: 'pos', amountText: `你借出 ${fmtMoney(l.amount, ccy)}` };
+  if (meId && l.to   === meId) return { tone: 'neg', amountText: `你欠 ${fmtMoney(l.amount, ccy)}` };
+  return { tone: 'neutral', amountText: fmtMoney(l.amount, ccy) };
+}
+
+const ACTIVITY_VERBS = {
+  expense: { add: '新增了一筆支出', edit: '修改了支出', delete: '刪除了一筆支出' },
+  loan:    { add: '記錄了一筆借款', edit: '修改了借款', delete: '刪除了一筆借款' },
+};
+
+// Build a Splitwise-style activity entry for a single record change.
+function makeActivity({ trip, meId, actorName, isSelf, action, kind, record }) {
+  const nameOf = id => (trip.members || []).find(m => m.id === id)?.name || '?';
+  const persp = kind === 'expense'
+    ? perspectiveExpense(trip, meId, record)
+    : perspectiveLoan(trip, meId, record);
+  const subtitle = kind === 'expense'
+    ? (record.title || '支出')
+    : `${nameOf(record.from)} → ${nameOf(record.to)}`;
+  const actor = isSelf ? '你' : (actorName || '某人');
+  const verb  = ACTIVITY_VERBS[kind][action];
+  return {
+    id: uid(), tripId: trip.id, tripTitle: trip.title || '旅程',
+    actor, isSelf: !!isSelf, action, kind, verb, subtitle,
+    amountText: persp.amountText, tone: persp.tone,
+    body: `${actor} ${verb}` + (kind === 'expense' ? `「${subtitle}」` : `（${subtitle}）`),
+    ts: Date.now(), read: !!isSelf,
+  };
+}
+
+// Diff old vs new trip → list of { action, kind, record } record changes.
+function diffRecordChanges(oldTrip, newTrip) {
   const out = [];
-  const memberName = id => (newTrip.members || []).find(m => m.id === id)?.name || '某人';
-  const oldExp = new Set((oldTrip.expenses || []).map(e => e.id));
-  (newTrip.expenses || []).forEach(e => {
-    if (oldExp.has(e.id)) return;
-    const title = e.title || '支出';
-    out.push({
-      kind: 'expense', recordId: e.id, title,
-      body: `${memberName(e.paidBy)} 新增了支出「${title}」 ${fmtMoney(e.amount, e.ccy)}`,
-    });
-  });
-  const oldLoan = new Set((oldTrip.loans || []).map(l => l.id));
-  (newTrip.loans || []).forEach(l => {
-    if (oldLoan.has(l.id)) return;
-    out.push({ kind: 'loan', recordId: l.id, title: '借貸', body: '新增了一筆借貸記錄' });
-  });
+  const sigE = e => JSON.stringify([e.title, e.amount, e.ccy, e.cat, e.paidBy, e.date, e.mode, e.note, e.splitData]);
+  const sigL = l => JSON.stringify([l.from, l.to, l.amount, l.ccy, l.note]);
+  function diff(kind, oldList = [], newList = [], sigFn) {
+    const oldMap = new Map(oldList.map(r => [r.id, r]));
+    const newMap = new Map(newList.map(r => [r.id, r]));
+    for (const r of newList) if (!oldMap.has(r.id)) out.push({ action: 'add',    kind, record: r });
+    for (const r of oldList) if (!newMap.has(r.id)) out.push({ action: 'delete', kind, record: r });
+    for (const r of newList) {
+      const o = oldMap.get(r.id);
+      if (o && sigFn(o) !== sigFn(r)) out.push({ action: 'edit', kind, record: r });
+    }
+  }
+  diff('expense', oldTrip.expenses, newTrip.expenses, sigE);
+  diff('loan',    oldTrip.loans,    newTrip.loans,    sigL);
   return out;
 }
 
@@ -165,7 +218,7 @@ function reducer(state, action) {
 
     // Firestore → local: upsert a single trip
     case 'SET_TRIP': {
-      const { _by, _at, _sid, ...trip } = a.trip;
+      const { _by, _at, _sid, _byName, ...trip } = a.trip;
       const existing = state.trips[trip.id];
       // Priority for "me" identity: localStorage > local state > Firestore data
       const storedMeId = localStorage.getItem(`pun_me_${trip.id}`);
@@ -363,7 +416,8 @@ function StoreProvider({ children }) {
       saveNotifs(next);
       return next;
     });
-    items.forEach(fireLocalNotification);
+    // Only fire a system push for *others'* actions — never for your own.
+    items.forEach(n => { if (!n.isSelf) fireLocalNotification(n); });
   }, []);
 
   const markAllNotifsRead = React.useCallback(() => {
@@ -444,20 +498,22 @@ function StoreProvider({ children }) {
         const oldTrip = prevRef.current[id];
         // Pre-populate prevRef so the write effect sees prevJSON === currJSON for
         // Firestore-loaded trips and never re-writes them spuriously.
-        const { _by, _at, _sid, ...cleanTrip } = data;
+        const { _by, _at, _sid, _byName, ...cleanTrip } = data;
         prevRef.current = { ...prevRef.current, [id]: { id, ...cleanTrip } };
         remoteIds.current.add(id);
-        // ── New-record detection → notification center ───────────────────────
+        // ── Activity detection → notification center ─────────────────────────
         // Only after initial load, only for changes written by *other* devices
-        // (our own writes echo back with _by === DEVICE_ID), and only for genuine
-        // record additions (join writes use _by 'join:…' and add no expenses).
+        // (our own writes echo back with _by === DEVICE_ID and are logged at
+        // dispatch time instead). join writes use _by 'join:…' and yield no
+        // record changes, so they produce nothing here.
         if (initialised && oldTrip && data._by && data._by !== DEVICE_ID) {
-          const news = diffNewRecords(oldTrip, { id, ...cleanTrip });
-          if (news.length) {
-            addNotifications(news.map(n => ({
-              id: uid(), tripId: id, tripTitle: cleanTrip.title || '旅程',
-              kind: n.kind, title: n.title, body: n.body,
-              ts: Date.now(), read: false,
+          const newTrip = { id, ...cleanTrip };
+          const meId = getMeId(newTrip);
+          const changes = diffRecordChanges(oldTrip, newTrip);
+          if (changes.length) {
+            addNotifications(changes.map(c => makeActivity({
+              trip: newTrip, meId, actorName: data._byName, isSelf: false,
+              action: c.action, kind: c.kind, record: c.record,
             })));
           }
         }
@@ -520,7 +576,7 @@ function StoreProvider({ children }) {
               const tripData = { id, ...data, ownerId: data.ownerId || user.uid };
               // Pre-populate prevRef so the write effect doesn't treat this recovered
               // trip as "new local" and spuriously re-write it to Firestore.
-              const { _by, _at, _sid, ...cleanRecovery } = tripData;
+              const { _by, _at, _sid, _byName, ...cleanRecovery } = tripData;
               prevRef.current = { ...prevRef.current, [id]: cleanRecovery };
               localDispatch({ type: 'SET_TRIP', trip: tripData });
             } catch (e) { console.warn('[Recovery]', id, e); }
@@ -594,6 +650,7 @@ function StoreProvider({ children }) {
       try {
         _db.collection('trips').doc(id).set({
           ...trip, _by: DEVICE_ID,
+          _byName: user.displayName || user.email || '某人',
           _at: firebase.firestore.FieldValue.serverTimestamp(),
         }).catch(e => console.warn('[Firestore] write:', e));
       } catch (e) {
@@ -619,11 +676,37 @@ function StoreProvider({ children }) {
     'ADD_LOAN','DELETE_LOAN','ADD_MEMBER','REMOVE_MEMBER',
     'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY',
   ];
+  // Log *your own* record actions to the activity feed (actor = 你).
+  // Others' actions are detected via the Firestore snapshot diff instead.
+  function logOwnActivity(a) {
+    const trip = stateRef.current.trips[a.tripId];
+    if (!trip) return;
+    const meId = getMeId(trip);
+    const base = { trip, meId, isSelf: true };
+    let entry = null;
+    if (a.type === 'ADD_EXPENSE') {
+      entry = makeActivity({ ...base, action: 'add', kind: 'expense', record: a.expense });
+    } else if (a.type === 'UPDATE_EXPENSE') {
+      const e = trip.expenses.find(x => x.id === a.id);
+      if (e) entry = makeActivity({ ...base, action: 'edit', kind: 'expense', record: { ...e, ...a.patch } });
+    } else if (a.type === 'DELETE_EXPENSE') {
+      const e = trip.expenses.find(x => x.id === a.id);
+      if (e) entry = makeActivity({ ...base, action: 'delete', kind: 'expense', record: e });
+    } else if (a.type === 'ADD_LOAN') {
+      entry = makeActivity({ ...base, action: 'add', kind: 'loan', record: a.loan });
+    } else if (a.type === 'DELETE_LOAN') {
+      const l = (trip.loans || []).find(x => x.id === a.id);
+      if (l) entry = makeActivity({ ...base, action: 'delete', kind: 'loan', record: l });
+    }
+    if (entry) addNotifications([entry]);
+  }
+
   const dispatch = React.useCallback(a => {
     if (USER_WRITE_ACTIONS.includes(a.type)) {
       const id = a.id || a.tripId;
       if (id) dirtyIds.current.add(id);
     }
+    try { logOwnActivity(a); } catch (e) { console.warn('[activity]', e); }
     localDispatch(a);
   }, []); // eslint-disable-line
 
