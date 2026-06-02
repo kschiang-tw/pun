@@ -72,9 +72,12 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
           }}>
             <Icon.search width={14} height={14} style={{ color: 'var(--ink-3)' }}/>
             <input value={q} onChange={e => setQ(e.target.value)}
+              type="text" name="ccy-search"
+              autoComplete="off" autoCorrect="off" autoCapitalize="none"
+              spellCheck={false} inputMode="search" enterKeyHint="search"
               placeholder="搜尋代碼或名稱" style={{
-                flex: 1, border: 0, outline: 'none', background: 'transparent',
-                fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)',
+                flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent',
+                fontFamily: 'inherit', fontSize: 16, color: 'var(--ink)',
               }}/>
             {q && <button onClick={() => setQ('')} style={{
               border: 0, background: 'transparent', color: 'var(--ink-3)',
