@@ -283,11 +283,20 @@ function Calculator({ expr, setExpr, onResult }) {
     if (k === 'C') { setExpr(''); return; }
     if (k === '⌫') { setExpr(expr.slice(0, -1)); return; }
     if (k === '=') { onResult(ENGINE.round2(result)); setExpr(''); return; }
+    if (k === '( )') {
+      // 智慧括號：依上下文自動補 ( 或 )
+      const opens = (expr.match(/\(/g) || []).length;
+      const closes = (expr.match(/\)/g) || []).length;
+      const last = expr.slice(-1);
+      const afterValue = /[0-9.)]/.test(last);
+      setExpr(expr + (afterValue && opens > closes ? ')' : '('));
+      return;
+    }
     setExpr(expr + k);
   };
   const keys = [
     ['C','⌫','%','÷'], ['7','8','9','×'], ['4','5','6','−'],
-    ['1','2','3','+'], ['0','.','=',''],
+    ['1','2','3','+'], ['0','.','=','( )'],
   ];
   return (
     <div className="card" style={{ marginTop: 12, padding: 10, borderRadius: 16, background: 'color-mix(in oklch, var(--bg-2) 70%, transparent)' }}>
@@ -298,7 +307,7 @@ function Calculator({ expr, setExpr, onResult }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
         {keys.flat().map((k, i) => {
           if (!k) return <div key={i}/>;
-          const isOp = '÷×−+%'.includes(k);
+          const isOp = '÷×−+%'.includes(k) || k === '( )';
           const isFn = 'C⌫'.includes(k);
           return (
             <button key={i} onClick={() => press(k)} style={{

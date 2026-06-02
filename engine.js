@@ -166,7 +166,7 @@ const ENGINE = (() => {
         op.push(tk);
       }
     }
-    while (op.length) out.push(op.pop());
+    while (op.length) { const o = op.pop(); if (o.t === '(' || o.t === ')') continue; out.push(o); }
     const stack = [];
     for (const tk of out) {
       if (tk.t === 'n') stack.push(tk.v);
