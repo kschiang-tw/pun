@@ -24,36 +24,11 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
   const recents = window.getRecentCcys ? window.getRecentCcys() : [];
   const all = window.CURRENCIES || [];
 
-  // Lock body scroll while sheet is open (prevents iOS viewport shift).
-  // Just setting overflow:hidden isn't enough on iOS Safari — focusing the
-  // search input makes Safari scroll the document to "reveal" it, which drags
-  // this fixed sheet sideways/up. Pin the body with position:fixed to stop it.
+  // Lock body scroll while sheet is open (prevents iOS viewport shift)
   React.useEffect(() => {
-    const body = document.body;
-    const scrollY = window.scrollY;
-    const prev = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-    };
-    body.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.left = '0';
-    body.style.right = '0';
-    body.style.width = '100%';
-    return () => {
-      body.style.overflow = prev.overflow;
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.left = prev.left;
-      body.style.right = prev.right;
-      body.style.width = prev.width;
-      window.scrollTo(0, scrollY);
-    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
   }, []);
 
   const filtered = q.trim()
@@ -102,7 +77,7 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
               spellCheck={false} inputMode="search" enterKeyHint="search"
               placeholder="搜尋代碼或名稱" style={{
                 flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent',
-                fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)',
+                fontFamily: 'inherit', fontSize: 16, color: 'var(--ink)',
               }}/>
             {q && <button onClick={() => setQ('')} style={{
               border: 0, background: 'transparent', color: 'var(--ink-3)',
