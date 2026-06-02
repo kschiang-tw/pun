@@ -24,11 +24,36 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
   const recents = window.getRecentCcys ? window.getRecentCcys() : [];
   const all = window.CURRENCIES || [];
 
-  // Lock body scroll while sheet is open (prevents iOS viewport shift)
+  // Lock body scroll while sheet is open (prevents iOS viewport shift).
+  // Just setting overflow:hidden isn't enough on iOS Safari — focusing the
+  // search input makes Safari scroll the document to "reveal" it, which drags
+  // this fixed sheet sideways/up. Pin the body with position:fixed to stop it.
   React.useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    return () => {
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
   }, []);
 
   const filtered = q.trim()
@@ -72,8 +97,11 @@ function CcyPickerSheet({ value, onChange, allowedHint, label, onClose }) {
           }}>
             <Icon.search width={14} height={14} style={{ color: 'var(--ink-3)' }}/>
             <input value={q} onChange={e => setQ(e.target.value)}
+              type="text" name="ccy-search"
+              autoComplete="off" autoCorrect="off" autoCapitalize="none"
+              spellCheck={false} inputMode="search" enterKeyHint="search"
               placeholder="搜尋代碼或名稱" style={{
-                flex: 1, border: 0, outline: 'none', background: 'transparent',
+                flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent',
                 fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)',
               }}/>
             {q && <button onClick={() => setQ('')} style={{
