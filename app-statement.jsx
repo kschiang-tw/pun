@@ -124,6 +124,11 @@ function StatementScreen({ go, tripId }) {
                         <td style={{...tdStyle, textAlign:'right', fontSize:9, color:'#666'}}>{r.modeLabel}</td>
                         <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600}}>
                           {r.share > 0 ? fmtAmt(r.share, group.ccy) : '—'}
+                          {r.myPaid > 0 && (
+                            <div style={{ fontSize:8, color:'#2d6a3a', fontWeight:500, marginTop:1 }}>
+                              付了 {fmtAmt(r.myPaid, group.ccy)}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -218,6 +223,7 @@ function buildStatement(trip, memberId) {
     groups[e.ccy].rows.push({
       id: e.id, date: e.date, title: e.title, note: e.note || '',
       amount: e.amount, share: myShare,
+      myPaid: payers[memberId] || 0,
       paidByName: Object.entries(payers).filter(([,a])=>a>0).map(([id])=>memberById[id]?.name||'?').join('、'),
       paidByMe: !!(payers[memberId] > 0),
       modeLabel: modeLabels[e.mode] || e.mode,
