@@ -460,7 +460,7 @@ function LoanForm({ trip, tripId, onClose }) {
 
   const selStyle = {
     border: '0.5px solid var(--hairline)', background: 'var(--surface)',
-    borderRadius: 10, padding: '11px 14px', fontSize: 14, color: 'var(--ink)',
+    borderRadius: 10, padding: '11px 14px', fontSize: 16, color: 'var(--ink)',
     fontFamily: 'inherit', width: '100%', outline: 'none',
     WebkitAppearance: 'none', appearance: 'none',
   };

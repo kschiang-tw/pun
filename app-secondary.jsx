@@ -83,11 +83,11 @@ function CreateTripScreen({ go }) {
         <div className="card" style={{ padding:0, overflow:'hidden' }}>
           <FormRow label="開始">
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:14, outline:'none', cursor:'pointer' }}/>
+              style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:16, outline:'none', cursor:'pointer' }}/>
           </FormRow>
           <FormRow label="結束">
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:14, outline:'none', cursor:'pointer' }}/>
+              style={{ border:0, background:'transparent', color:'var(--ink-2)', fontFamily:'inherit', fontSize:16, outline:'none', cursor:'pointer' }}/>
           </FormRow>
           <FormRow label="主幣別" last>
             <CcyPicker value={base} onChange={setBase}/>
@@ -103,7 +103,7 @@ function CreateTripScreen({ go }) {
           {members.map((m, i) => (
             <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom: i===members.length-1?0:'0.5px solid var(--hairline)' }}>
               <input value={m.name} onChange={e => { const next=[...members]; next[i]={...m,name:e.target.value}; setMembers(next); }}
-                placeholder={m.isMe?'你':'成員姓名'} style={{ flex:1, border:0, background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, color:'var(--ink)' }}/>
+                placeholder={m.isMe?'你':'成員姓名'} style={{ flex:1, border:0, background:'transparent', outline:'none', fontFamily:'inherit', fontSize:16, color:'var(--ink)' }}/>
               {m.isMe
                 ? <span className="chip sage" style={{ fontSize:10 }}>你</span>
                 : <button onClick={() => setMembers(members.filter((_,j)=>j!==i))} style={{ border:0, background:'transparent', color:'var(--ink-3)', fontSize:13, cursor:'pointer' }}>移除</button>}
@@ -182,7 +182,7 @@ function MembersScreen({ go, tripId }) {
       <div style={{ padding:'18px 16px 0' }}>
         <div className="card" style={{ padding:'8px 12px', display:'flex', alignItems:'center', gap:8 }}>
           <input value={newName} onChange={e => setNewName(e.target.value)}
-            placeholder="新成員姓名" style={{ flex:1, border:0, background:'transparent', outline:'none', fontFamily:'inherit', fontSize:14, color:'var(--ink)', padding:'4px 0' }}/>
+            placeholder="新成員姓名" style={{ flex:1, border:0, background:'transparent', outline:'none', fontFamily:'inherit', fontSize:16, color:'var(--ink)', padding:'4px 0' }}/>
           <button onClick={() => { if(newName.trim()) { dispatch({ type:'ADD_MEMBER', tripId, name: newName.trim() }); setNewName(''); } }}
             style={{ border:0, background:'var(--ink)', color:'var(--bg)', padding:'6px 12px', borderRadius:999, fontSize:12, fontWeight:500, cursor:'pointer' }}>
             加入
@@ -321,7 +321,7 @@ function RatesScreen({ go, tripId }) {
                       background: rateMode==='live' ? 'var(--surface)' : 'var(--bg-2)',
                       color: rateMode==='live' ? 'var(--ink-3)' : 'var(--ink)',
                       outline:'none', cursor: rateMode==='live' ? 'not-allowed' : 'text',
-                      fontFamily:'var(--font-num)', fontVariantNumeric:'tabular-nums', fontSize:13, fontWeight:500,
+                      fontFamily:'var(--font-num)', fontVariantNumeric:'tabular-nums', fontSize:16, fontWeight:500,
                     }}/>
                 ) : (
                   <span className="t-amount tabular" style={{ color:'var(--ink-3)', fontSize:13 }}>1.00</span>

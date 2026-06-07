@@ -104,6 +104,9 @@ body {
 }
 #root { min-height: 100svh; }
 button { font-family: inherit; }
+/* iOS Safari 對 font-size < 16px 的輸入框聚焦時會自動放大頁面導致版面跑掉，
+   全域預設 16px 作為保險；個別需要更大字級的輸入框可用 inline style 覆寫。 */
+input, select, textarea { font-size: 16px; }
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* Liquid Glass */

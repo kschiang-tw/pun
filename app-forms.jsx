@@ -249,7 +249,7 @@ function AddExpenseScreen({ go, tripId, editId }) {
         <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="備註"
           rows={2} style={{
             width: '100%', border: '0.5px solid var(--hairline)',
-            borderRadius: 14, padding: '10px 12px', fontFamily: 'inherit', fontSize: 13,
+            borderRadius: 14, padding: '10px 12px', fontFamily: 'inherit', fontSize: 16,
             background: 'var(--surface)', color: 'var(--ink)', outline: 'none', resize: 'none',
           }}/>
       </div>

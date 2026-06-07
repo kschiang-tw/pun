@@ -188,7 +188,7 @@ function LoginScreen() {
                 autoComplete="email"
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  padding: '13px 16px', borderRadius: 14, fontSize: 15,
+                  padding: '13px 16px', borderRadius: 14, fontSize: 16,
                   border: '0.5px solid var(--hairline)',
                   background: 'var(--surface)', color: 'var(--ink)',
                   fontFamily: 'inherit', outline: 'none', marginBottom: 10,
