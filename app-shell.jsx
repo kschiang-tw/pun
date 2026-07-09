@@ -125,7 +125,7 @@ function HomeScreen({ go }) {
   const [showNotif, setShowNotif] = React.useState(false);
 
   return (
-    <div style={{ paddingBottom: 40 }}>
+    <div style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
       <div style={{ padding: '54px 20px 8px' }}>
         <div style={{ marginBottom: 6, fontSize: 10, letterSpacing: 1.6, color: 'var(--ink-3)', fontStyle: 'italic', fontWeight: 600 }}>pun</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
