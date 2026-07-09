@@ -113,9 +113,11 @@ function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
   const { user, lastSyncAt } = useAuth();
   const { unreadCount } = useNotifications();
+  const currentTripId = s.currentTripId;
   const trips = Object.values(s.trips).sort((a,b) => {
-    // 目前旅程（置頂）永遠排在最前面
-    if (!!b.pinned !== !!a.pinned) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+    // 目前旅程（本機置頂）永遠排在最前面
+    const ac = a.id === currentTripId, bc = b.id === currentTripId;
+    if (ac !== bc) return (bc ? 1 : 0) - (ac ? 1 : 0);
     return b.startDate.localeCompare(a.startDate);
   });
   const [showAbout, setShowAbout] = React.useState(false);
@@ -202,7 +204,7 @@ function HomeScreen({ go }) {
               }}/>
               <div style={{ position: 'absolute', top: 14, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-                  {t.pinned && (
+                  {t.id === currentTripId && (
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                       padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,

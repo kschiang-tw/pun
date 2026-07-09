@@ -42,6 +42,19 @@ function removeLocalId(id) {
   } catch {}
 }
 
+// ── Current trip ("目前旅程" pin) ──────────────────────────────────────────────
+// A *per-user* preference: synced to the signed-in user's own account (so it
+// follows them across devices) via userPrefs/{uid}, but NOT shared with trip
+// collaborators (it never touches the shared trip document). localStorage is
+// just a local cache for instant paint before the Firestore snapshot arrives.
+const CURRENT_TRIP_KEY = 'pun_current_trip';
+function loadCurrentTripId() {
+  try { return localStorage.getItem(CURRENT_TRIP_KEY) || null; } catch { return null; }
+}
+function saveCurrentTripId(id) {
+  try { if (id) localStorage.setItem(CURRENT_TRIP_KEY, id); else localStorage.removeItem(CURRENT_TRIP_KEY); } catch {}
+}
+
 // ── "Returning user" flag — once set, never seed demo again ──────────────────
 const EVER_HAD_TRIPS_KEY = 'pun_ever_had_trips';
 function markEverHadTrips() {
@@ -245,12 +258,22 @@ function reducer(state, action) {
     // Firestore → local: remove a trip (deleted by owner)
     case 'REMOVE_TRIP': {
       const t = { ...state.trips }; delete t[a.id];
-      return { ...state, trips: t,
+      let currentTripId = state.currentTripId;
+      if (currentTripId === a.id) { saveCurrentTripId(null); currentTripId = null; }
+      return { ...state, trips: t, currentTripId,
         activeTripId: state.activeTripId === a.id ? null : state.activeTripId };
     }
 
     case 'SELECT_TRIP':
       return { ...state, activeTripId: a.id };
+
+    // "目前旅程" pin — update local state + localStorage cache. The Firestore
+    // write to userPrefs/{uid} is handled by the setCurrentTrip action helper.
+    case 'SET_CURRENT_TRIP': {
+      const id = a.id || null;
+      saveCurrentTripId(id);
+      return { ...state, currentTripId: id };
+    }
 
     case 'CREATE_TRIP': {
       const trip = {
@@ -271,7 +294,9 @@ function reducer(state, action) {
 
     case 'DELETE_TRIP': {
       const t = { ...state.trips }; delete t[a.id];
-      return { ...state, trips: t,
+      let currentTripId = state.currentTripId;
+      if (currentTripId === a.id) { saveCurrentTripId(null); currentTripId = null; }
+      return { ...state, trips: t, currentTripId,
         activeTripId: state.activeTripId === a.id ? null : state.activeTripId };
     }
 
@@ -378,7 +403,10 @@ function reducer(state, action) {
     }
 
     case 'RESET':
-      return { activeTripId: null, trips: {} };
+      // Sign-out: clear the cached pin so the next account starts clean
+      // (the real value is reloaded from that user's userPrefs on login).
+      saveCurrentTripId(null);
+      return { activeTripId: null, trips: {}, currentTripId: null };
 
     default: return state;
   }
@@ -392,7 +420,7 @@ const NotifCtx  = React.createContext({ notifications: [], unreadCount: 0 });
 
 // ── StoreProvider ─────────────────────────────────────────────────────────────
 function StoreProvider({ children }) {
-  const [state, localDispatch] = React.useReducer(reducer, { activeTripId: null, trips: {} });
+  const [state, localDispatch] = React.useReducer(reducer, { activeTripId: null, trips: {}, currentTripId: loadCurrentTripId() });
   const [user,        setUser]       = React.useState(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [tripsReady,  setTripsReady]  = React.useState(false);
@@ -617,6 +645,18 @@ function StoreProvider({ children }) {
     return () => { unsubOwned(); unsubShared(); };
   }, [user?.uid]);  // eslint-disable-line
 
+  // ── "目前旅程" pin — sync from the user's own userPrefs doc (cross-device) ──
+  // Read-only subscription: reflects changes this user made on any of *their*
+  // devices. Never reads other users' prefs, so collaborators are unaffected.
+  React.useEffect(() => {
+    if (!user) return;
+    const unsub = _db.collection('userPrefs').doc(user.uid).onSnapshot(doc => {
+      const id = doc.exists ? (doc.data().currentTripId || null) : null;
+      localDispatch({ type: 'SET_CURRENT_TRIP', id });
+    }, e => console.warn('[userPrefs]', e));
+    return unsub;
+  }, [user?.uid]); // eslint-disable-line
+
   // ── Auto-handle ?invite= on load ─────────────────────────────────────────
   React.useEffect(() => {
     if (!user || !tripsReady) return;
@@ -770,7 +810,20 @@ function StoreProvider({ children }) {
     return written;
   }
 
-  const tripActions = { shareTrip, joinTripByCode, forceBackup };
+  // Set / clear the per-user "目前旅程" pin: update locally for instant feedback,
+  // then persist to userPrefs/{uid} so it syncs to this user's other devices.
+  function setCurrentTrip(id) {
+    const next = id || null;
+    localDispatch({ type: 'SET_CURRENT_TRIP', id: next });
+    if (!user) return;
+    try {
+      _db.collection('userPrefs').doc(user.uid)
+        .set({ currentTripId: next }, { merge: true })
+        .catch(e => console.warn('[userPrefs] write:', e));
+    } catch (e) { console.warn('[userPrefs] write (sync error):', e); }
+  }
+
+  const tripActions = { shareTrip, joinTripByCode, forceBackup, setCurrentTrip };
 
   const unreadCount = notifications.reduce((n, x) => n + (x.read ? 0 : 1), 0);
   const notifApi = {
