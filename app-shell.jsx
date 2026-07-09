@@ -113,7 +113,11 @@ function HomeScreen({ go }) {
   const [s, dispatch] = useStore();
   const { user, lastSyncAt } = useAuth();
   const { unreadCount } = useNotifications();
-  const trips = Object.values(s.trips).sort((a,b) => b.startDate.localeCompare(a.startDate));
+  const trips = Object.values(s.trips).sort((a,b) => {
+    // 目前旅程（置頂）永遠排在最前面
+    if (!!b.pinned !== !!a.pinned) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+    return b.startDate.localeCompare(a.startDate);
+  });
   const [showAbout, setShowAbout] = React.useState(false);
   const [showJoin,  setShowJoin]  = React.useState(false);
   const [showNotif, setShowNotif] = React.useState(false);
@@ -196,13 +200,27 @@ function HomeScreen({ go }) {
                 position: 'absolute', inset: 0,
                 background: 'linear-gradient(160deg, rgba(255,255,255,0.18), transparent 40%, rgba(0,0,0,0.22))',
               }}/>
-              <div style={{ position: 'absolute', top: 14, left: 16, right: 16, display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{
-                  padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600,
-                  letterSpacing: 0.4, color: '#fff', textTransform: 'uppercase',
-                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
-                  WebkitBackdropFilter: 'blur(8px)',
-                }}>{t.members.length} 人 · {t.currencies.length} 幣別</span>
+              <div style={{ position: 'absolute', top: 14, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                  {t.pinned && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                      letterSpacing: 0.4, color: 'var(--ink)',
+                      background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}>
+                      <Icon.pin width={11} height={11}/>目前旅程
+                    </span>
+                  )}
+                  <span style={{
+                    padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600,
+                    letterSpacing: 0.4, color: '#fff', textTransform: 'uppercase',
+                    background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                  }}>{t.members.length} 人 · {t.currencies.length} 幣別</span>
+                </div>
                 <AvatarStack members={t.members.slice(0, 3)} size={22}/>
               </div>
               <div style={{ position: 'absolute', left: 18, right: 18, bottom: 14, color: '#fff' }}>

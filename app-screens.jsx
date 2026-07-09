@@ -175,6 +175,21 @@ function TripScreen({ go, tripId }) {
 
 function TripMenu({ trip, dispatch, go, onClose, onInvite }) {
   const { user } = useAuth();
+  const [s] = useStore();
+
+  // 設定 / 取消「目前旅程」— 同一時間只會有一趟被標記，並置頂於旅程列表
+  const toggleCurrent = () => {
+    const willPin = !trip.pinned;
+    if (willPin) {
+      // 先取消其他已置頂的旅程，確保只有一趟目前旅程
+      Object.values(s.trips).forEach(t => {
+        if (t.id !== trip.id && t.pinned) {
+          dispatch({ type: 'UPDATE_TRIP', id: t.id, patch: { pinned: false } });
+        }
+      });
+    }
+    dispatch({ type: 'UPDATE_TRIP', id: trip.id, patch: { pinned: willPin } });
+  };
 
   // accessList: new trips have it; fall back to just the current owner for old trips
   const accessList = (trip.accessList && trip.accessList.length > 0)
@@ -208,6 +223,12 @@ function TripMenu({ trip, dispatch, go, onClose, onInvite }) {
           {trip.title}
         </div>
         <div style={{ height: '0.5px', background: 'var(--hairline)', margin: '0 20px 6px' }}/>
+
+        {menuItem(
+          trip.pinned ? '取消目前旅程' : '設為目前旅程（置頂）',
+          <Icon.pin width={20} height={20}/>,
+          toggleCurrent,
+        )}
 
         {menuItem('邀請旅伴', (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"

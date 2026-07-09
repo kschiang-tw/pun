@@ -45,6 +45,7 @@ const Icon = {
   filter:   (p) => stroke(<path d="M4 6h16M7 12h10M10 18h4"/>, p),
   bell:     (p) => stroke(<><path d="M6 9a6 6 0 0 1 12 0c0 4 1 6 2 7H4c1-1 2-3 2-7z"/><path d="M10 21a2 2 0 0 0 4 0"/></>, p),
   trash:    (p) => stroke(<><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></>, p),
+  pin:      (p) => stroke(<><path d="M9 3h6l-1 5 3 4v2H7v-2l3-4-1-5z"/><path d="M12 14v7"/></>, p),
 };
 
 function Avatar({ member, size = 32, ring = false }) {
