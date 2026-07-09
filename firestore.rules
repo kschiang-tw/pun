@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// pun — Firestore 安全規則
+//
+// 說明：
+// - trips / invites 需維持「登入即可讀寫」，因為「加入旅程」流程中，
+//   尚未成為協作者的使用者必須能先讀取邀請碼與旅程文件，並把自己
+//   寫進 collaborators / accessList（見 store.jsx joinTripByCode）。
+//   同時孤兒旅程復原、範例種子、遷移等流程也依賴此權限。
+// - userPrefs 是個人偏好（例如「目前旅程」置頂），只允許本人讀寫，
+//   因此不會外流給任何旅伴。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 旅程資料（擁有者與協作者共享）
+    match /trips/{tripId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 邀請碼
+    match /invites/{code} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 個人偏好 — 僅本人可讀寫，不分享給旅伴
+    match /userPrefs/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
