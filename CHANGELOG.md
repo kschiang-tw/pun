@@ -6,7 +6,7 @@
 
 ## v4.2.1 (2026-07-09)
 ### 其他
-- 新增 `firestore.rules` 與 `firebase.json`：`trips` / `invites` 維持登入即可讀寫（維持「加入旅程」等流程），`userPrefs` 個人偏好僅本人可讀寫，確保「目前旅程」不外流給旅伴
+- 新增 `firestore.rules` 與 `firebase.json`：沿用既有的 `trips`（owner／collaborator 細部權限）與 `invites` 規則，新增 `userPrefs` 個人偏好僅本人可讀寫，確保「目前旅程」不外流給旅伴
 
 ## v4.2.0 (2026-07-09)
 ### 新增
