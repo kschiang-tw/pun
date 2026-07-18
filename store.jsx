@@ -359,6 +359,22 @@ function reducer(state, action) {
         [a.tripId]: { ...t, rateMode: a.mode } } };
     }
 
+    case 'SET_BASE_CCY': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      if (a.ccy === t.baseCurrency || !t.currencies.includes(a.ccy)) return state;
+      const pivot = t.rates[a.ccy] || 1;
+      const rates = {};
+      for (const [c, r] of Object.entries(t.rates)) {
+        rates[c] = ENGINE.roundRate((r || 1) / pivot);
+      }
+      rates[a.ccy] = 1;
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t, baseCurrency: a.ccy, rates,
+          ratesUpdatedAt: Date.now(),
+          // Force a refetch in live mode: division keeps ratios but loses source precision.
+          liveRatesFetchedAt: null } } };
+    }
+
     case 'TOGGLE_CCY': {
       const t = state.trips[a.tripId]; if (!t) return state;
       const has = t.currencies.includes(a.ccy);
@@ -713,7 +729,7 @@ function StoreProvider({ children }) {
   const USER_WRITE_ACTIONS = [
     'UPDATE_TRIP','ADD_EXPENSE','UPDATE_EXPENSE','DELETE_EXPENSE',
     'ADD_LOAN','DELETE_LOAN','ADD_MEMBER','REMOVE_MEMBER',
-    'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY',
+    'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY','SET_BASE_CCY',
   ];
   // Log *your own* record actions to the activity feed (actor = 你).
   // Others' actions are detected via the Firestore snapshot diff instead.

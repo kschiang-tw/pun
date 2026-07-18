@@ -216,7 +216,7 @@ function RatesScreen({ go, tripId }) {
       const next = { [base]: 1 };
       for (const c of wanted) {
         const r = data.rates[c];
-        if (r && r > 0) next[c] = ENGINE.round2(1 / r);
+        if (r && r > 0) next[c] = ENGINE.roundRate(1 / r);
       }
       dispatch({ type:'SET_RATES_BULK', tripId, rates: next, rateMode:'live' });
     } catch (e) {
@@ -230,7 +230,7 @@ function RatesScreen({ go, tripId }) {
     if (rateMode !== 'live') return;
     const stale = !trip.liveRatesFetchedAt || (Date.now() - trip.liveRatesFetchedAt) > 3600 * 1000;
     if (stale && !fetching) fetchLive();
-  }, [rateMode]);
+  }, [rateMode, trip.baseCurrency]);
 
   const setMode = (mode) => { setFetchErr(''); dispatch({ type:'SET_RATE_MODE', tripId, mode }); };
   const updatedMin = Math.max(0, Math.round((Date.now() - (trip.ratesUpdatedAt || Date.now())) / 60000));
@@ -297,6 +297,30 @@ function RatesScreen({ go, tripId }) {
       </div>
 
       <div style={{ padding:'20px 16px 0' }}>
+        <div className="t-cap" style={{ marginBottom:8, paddingLeft:4 }}>主幣（結算幣別）</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+          {trip.currencies.map(c => {
+            const on = c === trip.baseCurrency;
+            return (
+              <button key={c} onClick={() => { if (!on) dispatch({ type:'SET_BASE_CCY', tripId, ccy: c }); }}
+                style={{
+                  border: on ? 0 : '0.5px solid var(--hairline-strong)',
+                  borderRadius:999, padding:'7px 14px', cursor: on ? 'default' : 'pointer',
+                  background: on ? 'var(--ink)' : 'var(--surface)',
+                  color: on ? 'var(--bg)' : 'var(--ink-2)',
+                  fontFamily:'inherit', fontSize:12, fontWeight: on ? 600 : 500, letterSpacing:0.3,
+                }}>
+                {c}{on ? ' ✓' : ''}
+              </button>
+            );
+          })}
+        </div>
+        <div className="t-meta" style={{ marginTop:8, paddingLeft:4, fontSize:10.5, color:'var(--ink-3)' }}>
+          總支出、結算與分帳金額都會換算成主幣顯示；切換主幣會自動換算各幣別匯率
+        </div>
+      </div>
+
+      <div style={{ padding:'20px 16px 0' }}>
         <div className="t-cap" style={{ marginBottom:8, paddingLeft:4 }}>已啟用</div>
         <div className="card" style={{ padding:'4px 14px' }}>
           {trip.currencies.map((c, i) => {
@@ -309,15 +333,15 @@ function RatesScreen({ go, tripId }) {
                     {c} {isBase && <span className="chip sage" style={{ fontSize:9, marginLeft:6 }}>主幣</span>}
                   </div>
                   <div className="t-meta tabular" style={{ marginTop:2, fontSize:11 }}>
-                    1 {c} = {ENGINE.round2(trip.rates[c] || 1)} {trip.baseCurrency}
+                    1 {c} = {ENGINE.fmtRate(trip.rates[c] || 1)} {trip.baseCurrency}
                   </div>
                 </div>
                 {!isBase ? (
-                  <input type="number" step="0.01" value={trip.rates[c] || 1}
+                  <input type="number" step="any" value={trip.rates[c] || 1}
                     disabled={rateMode === 'live'}
                     onChange={e => dispatch({ type:'SET_RATE', tripId, ccy: c, rate: +e.target.value })}
                     style={{
-                      width:80, border:'0.5px solid var(--hairline-strong)', borderRadius:10, padding:'5px 10px', textAlign:'right',
+                      width:96, border:'0.5px solid var(--hairline-strong)', borderRadius:10, padding:'5px 10px', textAlign:'right',
                       background: rateMode==='live' ? 'var(--surface)' : 'var(--bg-2)',
                       color: rateMode==='live' ? 'var(--ink-3)' : 'var(--ink)',
                       outline:'none', cursor: rateMode==='live' ? 'not-allowed' : 'text',
@@ -604,7 +628,7 @@ function ExportScreen({ go, tripId }) {
           </div>
 
           <div style={{ marginTop:14, paddingTop:8, borderTop:'1px solid #e8e1d4', display:'flex', justifyContent:'space-between', fontSize:8, color:'var(--ink-3)' }}>
-            <span>FX: {trip.currencies.map(c=>`1 ${c}=${ENGINE.round2(trip.rates[c]||1)} ${trip.baseCurrency}`).join(' · ')}</span>
+            <span>FX: {trip.currencies.map(c=>`1 ${c}=${ENGINE.fmtRate(trip.rates[c]||1)} ${trip.baseCurrency}`).join(' · ')}</span>
             <span><em>pun</em></span>
           </div>
         </div>
@@ -686,7 +710,7 @@ function ExpenseDetailScreen({ go, tripId, id }) {
         </div>
         {e.ccy !== trip.baseCurrency && (
           <div className="t-meta tabular" style={{ marginTop:2, fontSize:12 }}>
-            ≈ {fmtBase(ENGINE.toBase(e.amount, e.ccy, trip.rates), trip)} (匯率 {ENGINE.round2(trip.rates[e.ccy])})
+            ≈ {fmtBase(ENGINE.toBase(e.amount, e.ccy, trip.rates), trip)} (匯率 {ENGINE.fmtRate(trip.rates[e.ccy])})
           </div>
         )}
       </div>

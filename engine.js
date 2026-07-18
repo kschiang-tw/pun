@@ -131,6 +131,18 @@ const ENGINE = (() => {
 
   function round2(n) { return Math.round(n * 100) / 100; }
 
+  // Rates need significant-digit rounding, not fixed decimals:
+  // round2(1/46.9) = 0.02 loses 6% for KRW; VND would collapse to 0.
+  function roundRate(n) {
+    if (!Number.isFinite(n) || n <= 0) return 1;
+    return parseFloat(n.toPrecision(6));
+  }
+
+  function fmtRate(n) {
+    if (!Number.isFinite(n) || n <= 0) return '1';
+    return String(parseFloat(n.toPrecision(4)));
+  }
+
   // Normalize paidBy: old expenses use string, new multi-payer expenses use { memberId: amount }
   function paidByMap(e) {
     return typeof e.paidBy === 'string' ? { [e.paidBy]: e.amount } : (e.paidBy || {});
@@ -265,7 +277,7 @@ const ENGINE = (() => {
   }
 
   return { computeShares, computeSplit, toBase, netBalances, simplify, totals,
-    byCategory, byDay, toCSV, toShareText, calc, round2, paidByMap };
+    byCategory, byDay, toCSV, toShareText, calc, round2, roundRate, fmtRate, paidByMap };
 })();
 
 window.ENGINE = ENGINE;

@@ -93,7 +93,7 @@ function StatementScreen({ go, tripId }) {
                     <span style={{ fontSize:10, color:'#666', marginLeft:6 }}>{window.CCY_NAME?.[group.ccy] || ''}</span>
                   </div>
                   <div style={{ fontSize:10, color:'#666' }}>
-                    參考匯率 1 {group.ccy} = {ENGINE.round2(trip.rates[group.ccy] || 1)} {trip.baseCurrency}
+                    參考匯率 1 {group.ccy} = {ENGINE.fmtRate(trip.rates[group.ccy] || 1)} {trip.baseCurrency}
                   </div>
                 </div>
 
@@ -141,7 +141,7 @@ function StatementScreen({ go, tripId }) {
                       <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:700}}>{fmtAmt(group.totalShare, group.ccy)}</td>
                     </tr>
                     <tr>
-                      <td colSpan={5} style={{...tdStyle, fontSize:9, color:'#666'}}>換算 {trip.baseCurrency} (× {ENGINE.round2(trip.rates[group.ccy] || 1)})</td>
+                      <td colSpan={5} style={{...tdStyle, fontSize:9, color:'#666'}}>換算 {trip.baseCurrency} (× {ENGINE.fmtRate(trip.rates[group.ccy] || 1)})</td>
                       <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600, fontSize:11, color:'#1d1d1d'}}>
                         {fmtBase(group.totalShare * (trip.rates[group.ccy] || 1), trip)}
                       </td>
