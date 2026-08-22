@@ -16,6 +16,7 @@ const CURRENCIES = [
   ['IDR', 'Indonesian Rupiah'],
   ['PHP', 'Philippine Peso'],
   ['INR', 'Indian Rupee'],
+  ['NPR', 'Nepalese Rupee'],
   ['AUD', 'Australian Dollar'],
   ['NZD', 'New Zealand Dollar'],
   ['CAD', 'Canadian Dollar'],
