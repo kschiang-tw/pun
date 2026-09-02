@@ -240,6 +240,19 @@ const ENGINE = (() => {
         e.mode, e.note || '',
       ]);
     }
+    const loans = [...(trip.loans || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    if (loans.length) {
+      rows.push([]);
+      rows.push(['Loans']);
+      rows.push(['Date','Lender','Borrower','Amount','Currency','Base ('+trip.baseCurrency+')','Note']);
+      for (const l of loans) {
+        rows.push([
+          l.date || '', memberById[l.from] || l.from, memberById[l.to] || l.to,
+          l.amount, l.ccy, round2(toBase(l.amount, l.ccy, trip.rates)),
+          l.note || '',
+        ]);
+      }
+    }
     return rows.map(r => r.map(cell => {
       const s = String(cell ?? '');
       return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
@@ -265,6 +278,17 @@ const ENGINE = (() => {
       lines.push(`${m.name}: 付 ${fmt(t.paidBy[m.id] || 0)}`);
     }
     lines.push('');
+    const loans = [...(trip.loans || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    if (loans.length) {
+      const zero = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
+      const fmtCcy = (n, c) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: zero.has(c) ? 0 : 2 }) + ' ' + (sym[c] || c);
+      lines.push(`— 借款紀錄 (${loans.length} 筆) —`);
+      for (const l of loans) {
+        const base = l.ccy !== trip.baseCurrency ? `（≈ ${fmt(toBase(l.amount, l.ccy, trip.rates))}）` : '';
+        lines.push(`${memberById[l.from]} 借給 ${memberById[l.to]}：${fmtCcy(l.amount, l.ccy)}${base}`);
+      }
+      lines.push('');
+    }
     if (tr.length === 0) {
       lines.push('✓ 已結平，無需轉帳');
     } else {
