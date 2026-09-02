@@ -152,12 +152,53 @@ function StatementScreen({ go, tripId }) {
             ))}
           </div>
 
+          {data.loans.length > 0 && (
+            <div style={{ marginBottom:18, breakInside:'avoid' }}>
+              <div style={{ fontSize:8, letterSpacing:1.6, color:'#999', fontWeight:600, marginBottom:8 }}>LOANS · 借款紀錄</div>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
+                <thead>
+                  <tr style={{ borderBottom:'1px solid #1d1d1d' }}>
+                    <th style={thStyle}>日期</th>
+                    <th style={thStyle}>項目</th>
+                    <th style={{...thStyle, textAlign:'right'}}>金額</th>
+                    <th style={{...thStyle, textAlign:'right'}}>{trip.baseCurrency} 換算</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.loans.map(l => (
+                    <tr key={l.id} style={{ borderBottom:'0.5px solid #ece6db' }}>
+                      <td style={tdStyle}>{l.date ? l.date.slice(5).replace('-','/') : '—'}</td>
+                      <td style={{...tdStyle, fontWeight:500}}>
+                        {l.direction === 'lent'
+                          ? <>你借給 <b>{l.otherName}</b></>
+                          : <>你向 <b>{l.otherName}</b> 借</>}
+                        {l.note && <div style={{ fontSize:9, color:'#888' }}>{l.note}</div>}
+                      </td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)'}}>{fmtAmt(l.amount, l.ccy)} {l.ccy}</td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600, color: l.direction==='lent' ? '#2d6a3a' : '#a13d2d'}}>
+                        {l.direction === 'lent' ? '+' : '−'}{fmtBase(l.base, trip)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div style={{ marginTop:8, padding:'14px 16px', background:'#f4f1eb', color:'#1d1d1d', borderRadius:4 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, fontSize:11 }}>
               <span style={{ color:'#666' }}>你的總分擔（{trip.baseCurrency} 換算）</span>
               <span style={{ fontFamily:'var(--font-num)', fontWeight:600 }}>{fmtBase(data.totalShareBase, trip)}</span>
               <span style={{ color:'#666' }}>你已支付（{trip.baseCurrency} 換算）</span>
               <span style={{ fontFamily:'var(--font-num)', fontWeight:600 }}>{fmtBase(data.totalPaidBase, trip)}</span>
+              {data.totalLentBase > 0 && <>
+                <span style={{ color:'#666' }}>你借出（{trip.baseCurrency} 換算）</span>
+                <span style={{ fontFamily:'var(--font-num)', fontWeight:600, color:'#2d6a3a' }}>+{fmtBase(data.totalLentBase, trip)}</span>
+              </>}
+              {data.totalBorrowedBase > 0 && <>
+                <span style={{ color:'#666' }}>你借入（{trip.baseCurrency} 換算）</span>
+                <span style={{ fontFamily:'var(--font-num)', fontWeight:600, color:'#a13d2d' }}>−{fmtBase(data.totalBorrowedBase, trip)}</span>
+              </>}
             </div>
             <div style={{ height:1, background:'#d8d3c8', margin:'10px 0' }}/>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
@@ -237,6 +278,22 @@ function buildStatement(trip, memberId) {
   }
   const byCcy = Object.values(groups).sort((a,b) => b.totalShare - a.totalShare);
 
+  const loans = [];
+  let totalLentBase = 0, totalBorrowedBase = 0;
+  for (const l of trip.loans || []) {
+    if (l.from !== memberId && l.to !== memberId) continue;
+    const base = ENGINE.toBase(l.amount, l.ccy, trip.rates);
+    const lent = l.from === memberId;
+    if (lent) totalLentBase += base; else totalBorrowedBase += base;
+    loans.push({
+      id: l.id, date: l.date || '', note: l.note || '',
+      direction: lent ? 'lent' : 'borrowed',
+      otherName: memberById[lent ? l.to : l.from]?.name || '?',
+      amount: l.amount, ccy: l.ccy, base,
+    });
+  }
+  loans.sort((a,b) => a.date.localeCompare(b.date));
+
   const all = ENGINE.simplify(trip);
   const transfers = [];
   for (const t of all) {
@@ -244,11 +301,14 @@ function buildStatement(trip, memberId) {
     else if (t.to === memberId) transfers.push({ direction:'receive', otherName: memberById[t.from]?.name, amount: t.amount });
   }
 
-  const net = totalPaidBase - totalShareBase;
+  const net = totalPaidBase - totalShareBase + totalLentBase - totalBorrowedBase;
   return {
     byCcy,
+    loans,
     totalShareBase: ENGINE.round2(totalShareBase),
     totalPaidBase: ENGINE.round2(totalPaidBase),
+    totalLentBase: ENGINE.round2(totalLentBase),
+    totalBorrowedBase: ENGINE.round2(totalBorrowedBase),
     net: ENGINE.round2(net),
     transfers,
   };
