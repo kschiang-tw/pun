@@ -119,6 +119,11 @@
     padding: 0 8px; border-radius: 7px; white-space: nowrap;
     background: var(--bg-2); border: 0.5px solid var(--hairline-strong);
   }
+  .b.ico { padding: 0 6px; }
+  .b svg { width: 1.1em; height: 1.1em; vertical-align: -0.2em; }
+  .os { margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.3px; }
+  .os:first-of-type { margin-top: 2px; }
+  .note { font-size: 14px; color: var(--ink-3); }
   .tip {
     margin-top: 12px; padding: 10px 12px; border-radius: 12px;
     background: var(--bg-2); font-size: 14px; color: var(--ink-2);
@@ -271,10 +276,19 @@
       <div>
         <span class="who">所有人</span>
         <h3>把 pun 加到主畫面</h3>
-        <ul>
-          <li><b>iPhone：</b>用 <b>Safari</b> 打開 pun → 下方的分享按鈕 <span class="b">⬆︎</span> → <span class="b">加入主畫面</span> → <span class="b">新增</span>。</li>
-          <li><b>Android：</b>用 <b>Chrome</b> 打開 pun → 右上角 <span class="b">⋮</span> → <span class="b">加到主畫面</span>（或 <span class="b">安裝應用程式</span>）。</li>
-        </ul>
+        <div class="os">iPhone · Safari</div>
+        <ol>
+          <li>用 <b>Safari</b> 打開 pun。</li>
+          <li>點分享按鈕 <span class="b ico" aria-label="分享"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5a2 2 0 0 0-2-2h-1.5"/><path d="M12 14.5V3M8.5 6.5 12 3l3.5 3.5"/></svg></span>。<br/>
+            <span class="note">iOS 26 以後網址列旁只有 <span class="b ico" aria-label="更多"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg></span>，先點它，再點 <span class="b">分享</span>。</span></li>
+          <li>往下滑，點 <span class="b">加入主畫面</span>。</li>
+          <li><b>以網頁 App 開啟</b> 保持開啟（iOS 26 以後才有）→ 點右上角 <span class="b">加入</span>。</li>
+        </ol>
+        <div class="os">Android · Chrome</div>
+        <ol>
+          <li>用 <b>Chrome</b> 打開 pun。</li>
+          <li>點右上角 <span class="b ico" aria-label="選單"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="18.5" r="1.9"/></svg></span> → <span class="b">加到主畫面</span>（或 <span class="b">安裝應用程式</span>），再按確認。</li>
+        </ol>
         <p>之後都從主畫面的 pun 圖示打開。全螢幕、離線也能記帳，這份使用說明也能離線看。</p>
         <div class="tip"><b>從 LINE 點開的連結</b>沒辦法直接加到主畫面：先按右上角的選單，改用 Safari（Android 用 Chrome）開啟，再照上面做。</div>
       </div>
