@@ -77,7 +77,8 @@ function StatementScreen({ go, tripId }) {
                 {data.net > 0 ? '+' : data.net < 0 ? '−' : ''}{fmtBase(Math.abs(data.net), trip)}
               </div>
               <div style={{ fontSize:10, color:'#666', marginTop:1 }}>
-                {data.net>0.5 ? '其他成員應付給你' : data.net<-0.5 ? '你應付給其他成員' : '已結平'}
+                {data.net>0.5 ? '其他成員應付給你' : data.net<-0.5 ? '你應付給其他成員'
+                  : data.payments.length ? '已結清' : '已結平'}
               </div>
             </div>
           </div>
@@ -185,6 +186,39 @@ function StatementScreen({ go, tripId }) {
             </div>
           )}
 
+          {data.payments.length > 0 && (
+            <div style={{ marginBottom:18, breakInside:'avoid' }}>
+              <div style={{ fontSize:8, letterSpacing:1.6, color:'#999', fontWeight:600, marginBottom:8 }}>PAYMENTS · 還款紀錄</div>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10 }}>
+                <thead>
+                  <tr style={{ borderBottom:'1px solid #1d1d1d' }}>
+                    <th style={thStyle}>日期</th>
+                    <th style={thStyle}>項目</th>
+                    <th style={{...thStyle, textAlign:'right'}}>金額</th>
+                    <th style={{...thStyle, textAlign:'right'}}>{trip.baseCurrency} 換算</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.payments.map(p => (
+                    <tr key={p.id} style={{ borderBottom:'0.5px solid #ece6db' }}>
+                      <td style={tdStyle}>{p.date ? p.date.slice(5).replace('-','/') : '—'}</td>
+                      <td style={{...tdStyle, fontWeight:500}}>
+                        {p.direction === 'paid'
+                          ? <>你付給 <b>{p.otherName}</b></>
+                          : <><b>{p.otherName}</b> 付給你</>}
+                        {p.note && <div style={{ fontSize:9, color:'#888' }}>{p.note}</div>}
+                      </td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)'}}>{fmtAmt(p.amount, p.ccy)} {p.ccy}</td>
+                      <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600, color: p.direction==='paid' ? '#2d6a3a' : '#a13d2d'}}>
+                        {p.direction === 'paid' ? '+' : '−'}{fmtBase(p.base, trip)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div style={{ marginTop:8, padding:'14px 16px', background:'#f4f1eb', color:'#1d1d1d', borderRadius:4 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, fontSize:11 }}>
               <span style={{ color:'#666' }}>你的總分擔（{trip.baseCurrency} 換算）</span>
@@ -199,10 +233,18 @@ function StatementScreen({ go, tripId }) {
                 <span style={{ color:'#666' }}>你借入（{trip.baseCurrency} 換算）</span>
                 <span style={{ fontFamily:'var(--font-num)', fontWeight:600, color:'#a13d2d' }}>−{fmtBase(data.totalBorrowedBase, trip)}</span>
               </>}
+              {data.totalRepaidBase > 0 && <>
+                <span style={{ color:'#666' }}>你已還款（{trip.baseCurrency} 換算）</span>
+                <span style={{ fontFamily:'var(--font-num)', fontWeight:600, color:'#2d6a3a' }}>+{fmtBase(data.totalRepaidBase, trip)}</span>
+              </>}
+              {data.totalReceivedBase > 0 && <>
+                <span style={{ color:'#666' }}>你已收款（{trip.baseCurrency} 換算）</span>
+                <span style={{ fontFamily:'var(--font-num)', fontWeight:600, color:'#a13d2d' }}>−{fmtBase(data.totalReceivedBase, trip)}</span>
+              </>}
             </div>
             <div style={{ height:1, background:'#d8d3c8', margin:'10px 0' }}/>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
-              <span style={{ fontSize:10, letterSpacing:1.6, color:'#888', fontWeight:600 }}>應收 / 應付 NET</span>
+              <span style={{ fontSize:10, letterSpacing:1.6, color:'#888', fontWeight:600 }}>{data.payments.length ? '還款後 應收 / 應付 NET' : '應收 / 應付 NET'}</span>
               <span style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:18, color: data.net>0.5?'#2d6a3a':data.net<-0.5?'#a13d2d':'#1d1d1d' }}>
                 {data.net > 0 ? '+' : data.net < 0 ? '−' : ''}{fmtBase(Math.abs(data.net), trip)}
               </span>
@@ -294,6 +336,24 @@ function buildStatement(trip, memberId) {
   }
   loans.sort((a,b) => a.date.localeCompare(b.date));
 
+  // Settle-up payments: paying reduces what you owe (+), receiving reduces
+  // what you're owed (−) — mirrors ENGINE.netBalances.
+  const payments = [];
+  let totalRepaidBase = 0, totalReceivedBase = 0;
+  for (const p of trip.settlements || []) {
+    if (p.from !== memberId && p.to !== memberId) continue;
+    const base = ENGINE.toBase(p.amount, p.ccy, trip.rates);
+    const paid = p.from === memberId;
+    if (paid) totalRepaidBase += base; else totalReceivedBase += base;
+    payments.push({
+      id: p.id, date: p.date || '', note: p.note || '',
+      direction: paid ? 'paid' : 'received',
+      otherName: memberById[paid ? p.to : p.from]?.name || '?',
+      amount: p.amount, ccy: p.ccy, base,
+    });
+  }
+  payments.sort((a,b) => a.date.localeCompare(b.date));
+
   const all = ENGINE.simplify(trip);
   const transfers = [];
   for (const t of all) {
@@ -301,10 +361,14 @@ function buildStatement(trip, memberId) {
     else if (t.to === memberId) transfers.push({ direction:'receive', otherName: memberById[t.from]?.name, amount: t.amount });
   }
 
-  const net = totalPaidBase - totalShareBase + totalLentBase - totalBorrowedBase;
+  const net = totalPaidBase - totalShareBase + totalLentBase - totalBorrowedBase
+            + totalRepaidBase - totalReceivedBase;
   return {
     byCcy,
     loans,
+    payments,
+    totalRepaidBase: ENGINE.round2(totalRepaidBase),
+    totalReceivedBase: ENGINE.round2(totalReceivedBase),
     totalShareBase: ENGINE.round2(totalShareBase),
     totalPaidBase: ENGINE.round2(totalPaidBase),
     totalLentBase: ENGINE.round2(totalLentBase),

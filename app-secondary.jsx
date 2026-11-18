@@ -510,6 +510,7 @@ function ExportScreen({ go, tripId }) {
   const memberById = Object.fromEntries(trip.members.map(m => [m.id, m]));
   const sorted = [...trip.expenses].sort((a,b) => a.date.localeCompare(b.date));
   const loans = [...(trip.loans || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const payments = [...(trip.settlements || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
   const downloadCSV = () => {
     const csv = '\ufeff' + ENGINE.toCSV(trip);
@@ -554,6 +555,7 @@ function ExportScreen({ go, tripId }) {
             <div style={{ textAlign:'right', fontSize:9, color:'var(--ink-3)' }}>
               <div>{trip.expenses.length} expenses</div>
               {loans.length > 0 && <div>{loans.length} loans</div>}
+              {payments.length > 0 && <div>{payments.length} payments</div>}
               <div>{trip.members.length} members</div>
               <div style={{ marginTop:2 }}>generated {new Date().toISOString().slice(0,10)}</div>
             </div>
@@ -638,10 +640,34 @@ function ExportScreen({ go, tripId }) {
             </div>
           )}
 
+          {payments.length > 0 && (
+            <div style={{ marginTop:14, paddingTop:10, borderTop:'1px solid #e8e1d4' }}>
+              <div style={{ fontSize:9, color:'var(--ink-3)', letterSpacing:0.5, marginBottom:6 }}>PAYMENTS · 已還款 {payments.length} 筆</div>
+              <div style={{ display:'grid', gridTemplateColumns:'34px 1fr 28px 60px 56px', gap:6, fontSize:8, color:'var(--ink-3)', letterSpacing:0.4, paddingBottom:4, borderBottom:'0.5px dashed var(--hairline-strong)' }}>
+                <span>DATE</span><span>PAYER → RECEIVER</span><span style={{ textAlign:'right' }}>CCY</span><span style={{ textAlign:'right' }}>AMOUNT</span><span style={{ textAlign:'right' }}>{trip.baseCurrency}</span>
+              </div>
+              {payments.map(p => (
+                <div key={p.id} style={{ display:'grid', gridTemplateColumns:'34px 1fr 28px 60px 56px', gap:6, padding:'5px 0', borderBottom:'0.5px dashed #e8e1d4', fontSize:9.5, alignItems:'baseline' }}>
+                  <span>{p.date ? fmtMD(p.date) : '—'}</span>
+                  <span style={{ fontFamily:'var(--font-sans)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    <b>{memberById[p.from]?.name || '?'}</b> → <b>{memberById[p.to]?.name || '?'}</b>
+                    {p.note && <span style={{ color:'var(--ink-3)', marginLeft:4 }}>· {p.note}</span>}
+                  </span>
+                  <span style={{ textAlign:'right', color:'var(--ink-3)' }}>{p.ccy}</span>
+                  <span style={{ textAlign:'right', fontFamily:'var(--font-num)' }}>{p.amount.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits: ccyMaxDecimals(p.ccy) })}</span>
+                  <span style={{ textAlign:'right', fontFamily:'var(--font-sans)', fontWeight:600 }}>{ENGINE.toBase(p.amount, p.ccy, trip.rates).toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits: ccyMaxDecimals(trip.baseCurrency) })}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ marginTop:14, padding:'12px 14px', borderRadius:8, background:'oklch(0.94 0.020 145)', color:'var(--sage-deep)' }}>
-            <div style={{ fontFamily:'var(--font-sans)', fontSize:9, fontWeight:700, letterSpacing:0.6, marginBottom:6 }}>SETTLEMENT · 最少 {transfers.length} 筆</div>
+            <div style={{ fontFamily:'var(--font-sans)', fontSize:9, fontWeight:700, letterSpacing:0.6, marginBottom:6 }}>
+              {!payments.length ? `SETTLEMENT · 最少 ${transfers.length} 筆`
+                : transfers.length ? `SETTLEMENT · 尚需 ${transfers.length} 筆` : 'SETTLEMENT · 已結清'}
+            </div>
             {transfers.length === 0
-              ? <div style={{ fontFamily:'var(--font-sans)', fontSize:12 }}>✓ 已結平，無需轉帳</div>
+              ? <div style={{ fontFamily:'var(--font-sans)', fontSize:12 }}>{payments.length ? '✓ 已全部結清' : '✓ 已結平，無需轉帳'}</div>
               : transfers.map((tr, i) => (
                 <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', fontSize:11 }}>
                   <span style={{ fontFamily:'var(--font-sans)' }}><b>{memberById[tr.from]?.name}</b> → <b>{memberById[tr.to]?.name}</b></span>

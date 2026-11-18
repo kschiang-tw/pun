@@ -188,6 +188,7 @@ function HomeScreen({ go }) {
           const net = ENGINE.netBalances(t);
           const me = t.members.find(m => m.isMe) || t.members[0];
           const myBal = me ? net[me.id] : 0;
+          const settled = ENGINE.isSettled(myBal, t.baseCurrency);
           return (
             <button key={t.id} onClick={() => go('trip', { tripId: t.id })}
               style={{
@@ -236,12 +237,13 @@ function HomeScreen({ go }) {
                     {fmtBase(tots.spent, t)}
                   </span>
                 </div>
-                {Math.abs(myBal) > 0.5 && (
+                {(!settled || (t.settlements || []).length > 0) && (
                   <div style={{ marginTop: 8 }}>
                     <span style={{
                       padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600,
                       color: '#fff', background: 'rgba(255,255,255,0.22)',
-                    }}>{myBal > 0 ? '應收' : '應付'} {fmtBase(Math.abs(myBal), t)}</span>
+                    }}>{settled ? '✓ 已結清'
+                      : `${myBal > 0 ? '應收' : '應付'} ${fmtBase(Math.abs(myBal), t)}`}</span>
                   </div>
                 )}
               </div>
@@ -374,7 +376,8 @@ function NotificationSheet({ go, onClose }) {
               const legacy = !n.verb;  // older entries only had a `body` string
               const iconKey = n.action === 'delete' ? 'trash'
                 : n.action === 'edit' ? 'pencil'
-                : (n.kind === 'loan' ? 'swap' : 'receipt');
+                : n.kind === 'loan' ? 'swap'
+                : n.kind === 'settlement' ? 'check' : 'receipt';
               const toneColor = n.tone === 'pos' ? 'var(--pos)'
                 : n.tone === 'neg' ? 'var(--neg)' : 'var(--ink-3)';
               const struck = n.action === 'delete';

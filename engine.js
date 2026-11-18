@@ -1,6 +1,17 @@
 // engine.js — Pure math helpers. No React, no side effects.
 
 const ENGINE = (() => {
+  const ZERO_DEC = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
+
+  // Smallest balance worth settling, in the given currency. Below it is
+  // rounding dust and counts as settled:
+  //  - zero-decimal currencies: under half a unit (e.g. NT$0.3 left after
+  //    paying the displayed NT$1,235 for an exact NT$1,234.56 debt)
+  //  - others: up to 1 cent, because net balances are rounded per member
+  //    and can disagree by a cent after everyone pays the exact amounts
+  function dust(ccy) { return ZERO_DEC.has(ccy) ? 0.5 : 0.015; }
+  function isSettled(amount, ccy) { return Math.abs(amount) < dust(ccy); }
+
   function computeShares(expense, members) {
     const { amount, mode, splitData } = expense;
     const ids = (splitData?.participants?.length ? splitData.participants
@@ -60,7 +71,7 @@ const ENGINE = (() => {
   }
 
   function netBalances(trip) {
-    const { members, expenses, rates, loans = [] } = trip;
+    const { members, expenses, rates, loans = [], settlements = [] } = trip;
     const net = Object.fromEntries(members.map(m => [m.id, 0]));
     for (const e of expenses) {
       for (const [pid, pamt] of Object.entries(paidByMap(e))) {
@@ -77,17 +88,25 @@ const ENGINE = (() => {
       net[l.from] = (net[l.from] || 0) + base;
       net[l.to]   = (net[l.to]   || 0) - base;
     }
+    // Settle-up payments (from = 付款人 → to = 收款人): the payer's debt
+    // shrinks and the receiver is owed less — same math as a loan.
+    for (const p of settlements) {
+      const base = toBase(p.amount, p.ccy, rates);
+      net[p.from] = (net[p.from] || 0) + base;
+      net[p.to]   = (net[p.to]   || 0) - base;
+    }
     for (const k of Object.keys(net)) net[k] = round2(net[k]);
     return net;
   }
 
   function simplify(trip) {
     const net = netBalances(trip);
+    const eps = dust(trip.baseCurrency);
     const creditors = [];
     const debtors = [];
     for (const [id, v] of Object.entries(net)) {
-      if (v > 0.005) creditors.push([id, v]);
-      else if (v < -0.005) debtors.push([id, -v]);
+      if (v >= eps) creditors.push([id, v]);
+      else if (v <= -eps) debtors.push([id, -v]);
     }
     creditors.sort((a, b) => b[1] - a[1]);
     debtors.sort((a, b) => b[1] - a[1]);
@@ -101,8 +120,8 @@ const ENGINE = (() => {
       out.push({ from: dId, to: cId, amount: round2(pay) });
       debtors[i][1] = round2(dAmt - pay);
       creditors[j][1] = round2(cAmt - pay);
-      if (debtors[i][1] < 0.01) i++;
-      if (creditors[j][1] < 0.01) j++;
+      if (debtors[i][1] < eps) i++;
+      if (creditors[j][1] < eps) j++;
     }
     return out;
   }
@@ -253,6 +272,19 @@ const ENGINE = (() => {
         ]);
       }
     }
+    const pays = [...(trip.settlements || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    if (pays.length) {
+      rows.push([]);
+      rows.push(['Settlements']);
+      rows.push(['Date','Payer','Receiver','Amount','Currency','Base ('+trip.baseCurrency+')','Note']);
+      for (const p of pays) {
+        rows.push([
+          p.date || '', memberById[p.from] || p.from, memberById[p.to] || p.to,
+          p.amount, p.ccy, round2(toBase(p.amount, p.ccy, trip.rates)),
+          p.note || '',
+        ]);
+      }
+    }
     return rows.map(r => r.map(cell => {
       const s = String(cell ?? '');
       return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
@@ -289,10 +321,21 @@ const ENGINE = (() => {
       }
       lines.push('');
     }
+    const pays = [...(trip.settlements || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    if (pays.length) {
+      const zero = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
+      const fmtCcy = (n, c) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: zero.has(c) ? 0 : 2 }) + ' ' + (sym[c] || c);
+      lines.push(`— 已還款 (${pays.length} 筆) —`);
+      for (const p of pays) {
+        const base = p.ccy !== trip.baseCurrency ? `（≈ ${fmt(toBase(p.amount, p.ccy, trip.rates))}）` : '';
+        lines.push(`${memberById[p.from]} 已付給 ${memberById[p.to]}：${fmtCcy(p.amount, p.ccy)}${base}`);
+      }
+      lines.push('');
+    }
     if (tr.length === 0) {
-      lines.push('✓ 已結平，無需轉帳');
+      lines.push(pays.length ? '✓ 已全部結清' : '✓ 已結平，無需轉帳');
     } else {
-      lines.push(`— 結算 (${tr.length} 筆) —`);
+      lines.push(pays.length ? `— 尚未結清 (${tr.length} 筆) —` : `— 結算 (${tr.length} 筆) —`);
       for (const x of tr) {
         lines.push(`${memberById[x.from]} → ${memberById[x.to]}：${fmt(x.amount)}`);
       }
@@ -301,7 +344,8 @@ const ENGINE = (() => {
   }
 
   return { computeShares, computeSplit, toBase, netBalances, simplify, totals,
-    byCategory, byDay, toCSV, toShareText, calc, round2, roundRate, fmtRate, paidByMap };
+    byCategory, byDay, toCSV, toShareText, calc, round2, roundRate, fmtRate, paidByMap,
+    dust, isSettled };
 })();
 
 window.ENGINE = ENGINE;

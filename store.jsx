@@ -132,17 +132,26 @@ function perspectiveLoan(trip, meId, l) {
   return { tone: 'neutral', amountText: fmtMoney(l.amount, ccy) };
 }
 
+// "我的視角" amount line for a settle-up payment (from = 付款人 / to = 收款人).
+function perspectiveSettlement(trip, meId, p) {
+  const ccy = p.ccy;
+  if (meId && p.from === meId) return { tone: 'neg', amountText: `你付了 ${fmtMoney(p.amount, ccy)}` };
+  if (meId && p.to   === meId) return { tone: 'pos', amountText: `你收到 ${fmtMoney(p.amount, ccy)}` };
+  return { tone: 'neutral', amountText: fmtMoney(p.amount, ccy) };
+}
+
 const ACTIVITY_VERBS = {
-  expense: { add: '新增了一筆支出', edit: '修改了支出', delete: '刪除了一筆支出' },
-  loan:    { add: '記錄了一筆借款', edit: '修改了借款', delete: '刪除了一筆借款' },
+  expense:    { add: '新增了一筆支出', edit: '修改了支出', delete: '刪除了一筆支出' },
+  loan:       { add: '記錄了一筆借款', edit: '修改了借款', delete: '刪除了一筆借款' },
+  settlement: { add: '記錄了一筆還款', edit: '修改了還款', delete: '刪除了一筆還款' },
 };
 
 // Build a Splitwise-style activity entry for a single record change.
 function makeActivity({ trip, meId, actorName, isSelf, action, kind, record }) {
   const nameOf = id => (trip.members || []).find(m => m.id === id)?.name || '?';
-  const persp = kind === 'expense'
-    ? perspectiveExpense(trip, meId, record)
-    : perspectiveLoan(trip, meId, record);
+  const persp = kind === 'expense'    ? perspectiveExpense(trip, meId, record)
+              : kind === 'settlement' ? perspectiveSettlement(trip, meId, record)
+              : perspectiveLoan(trip, meId, record);
   const subtitle = kind === 'expense'
     ? (record.title || '支出')
     : `${nameOf(record.from)} → ${nameOf(record.to)}`;
@@ -162,6 +171,7 @@ function diffRecordChanges(oldTrip, newTrip) {
   const out = [];
   const sigE = e => JSON.stringify([e.title, e.amount, e.ccy, e.cat, e.paidBy, e.date, e.mode, e.note, e.splitData]);
   const sigL = l => JSON.stringify([l.from, l.to, l.amount, l.ccy, l.note]);
+  const sigS = p => JSON.stringify([p.from, p.to, p.amount, p.ccy, p.date, p.note]);
   function diff(kind, oldList = [], newList = [], sigFn) {
     const oldMap = new Map(oldList.map(r => [r.id, r]));
     const newMap = new Map(newList.map(r => [r.id, r]));
@@ -174,6 +184,7 @@ function diffRecordChanges(oldTrip, newTrip) {
   }
   diff('expense', oldTrip.expenses, newTrip.expenses, sigE);
   diff('loan',    oldTrip.loans,    newTrip.loans,    sigL);
+  diff('settlement', oldTrip.settlements, newTrip.settlements, sigS);
   return out;
 }
 
@@ -203,7 +214,7 @@ function makeDemoTrip(ownerId) {
       { id: 'me', name: 'You', initial: '你', tint: 'sage', isMe: true },
       { id: 'an', name: 'An',  initial: 'A',  tint: 'clay' },
     ],
-    loans: [],
+    loans: [], settlements: [],
     expenses: [
       mk('Pelikan 晚餐',      'food',     'me', 1240, 'SEK', '2026-06-26', 'equal'),
       mk('Hotel C Stockholm', 'lodging',  'me', 4860, 'SEK', '2026-06-25', 'equal'),
@@ -284,7 +295,7 @@ function reducer(state, action) {
         rates: a.rates || { [a.baseCurrency || 'TWD']: 1 },
         ratesUpdatedAt: Date.now(), rateMode: 'manual', liveRatesFetchedAt: null,
         members: a.members || [{ id: 'me', name: 'You', initial: '你', tint: 'sage', isMe: true }],
-        expenses: [], loans: [],
+        expenses: [], loans: [], settlements: [],
         ownerId: a.ownerId, collaborators: [], shareCode: null,
         accessList: a.accessList || [],
       };
@@ -416,6 +427,27 @@ function reducer(state, action) {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, loans: (t.loans || []).filter(l => l.id !== a.id) } } };
+    }
+
+    // Settle-up payments ("結清"): from = 付款人, to = 收款人
+    case 'ADD_SETTLEMENT': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      const p = { id: uid(), createdAt: Date.now(), ...a.settlement };
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t, settlements: [...(t.settlements || []), p] } } };
+    }
+
+    case 'UPDATE_SETTLEMENT': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t,
+          settlements: (t.settlements || []).map(p => p.id === a.id ? { ...p, ...a.patch } : p) } } };
+    }
+
+    case 'DELETE_SETTLEMENT': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t, settlements: (t.settlements || []).filter(p => p.id !== a.id) } } };
     }
 
     case 'RESET':
@@ -729,6 +761,7 @@ function StoreProvider({ children }) {
   const USER_WRITE_ACTIONS = [
     'UPDATE_TRIP','ADD_EXPENSE','UPDATE_EXPENSE','DELETE_EXPENSE',
     'ADD_LOAN','DELETE_LOAN','ADD_MEMBER','REMOVE_MEMBER',
+    'ADD_SETTLEMENT','UPDATE_SETTLEMENT','DELETE_SETTLEMENT',
     'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY','SET_BASE_CCY',
   ];
   // Log *your own* record actions to the activity feed (actor = 你).
@@ -752,13 +785,23 @@ function StoreProvider({ children }) {
     } else if (a.type === 'DELETE_LOAN') {
       const l = (trip.loans || []).find(x => x.id === a.id);
       if (l) entry = makeActivity({ ...base, action: 'delete', kind: 'loan', record: l });
+    } else if (a.type === 'ADD_SETTLEMENT') {
+      entry = makeActivity({ ...base, action: 'add', kind: 'settlement', record: a.settlement });
+    } else if (a.type === 'UPDATE_SETTLEMENT') {
+      const p = (trip.settlements || []).find(x => x.id === a.id);
+      if (p) entry = makeActivity({ ...base, action: 'edit', kind: 'settlement', record: { ...p, ...a.patch } });
+    } else if (a.type === 'DELETE_SETTLEMENT') {
+      const p = (trip.settlements || []).find(x => x.id === a.id);
+      if (p) entry = makeActivity({ ...base, action: 'delete', kind: 'settlement', record: p });
     }
     if (entry) addNotifications([entry]);
   }
 
   const dispatch = React.useCallback(a => {
     if (USER_WRITE_ACTIONS.includes(a.type)) {
-      const id = a.id || a.tripId;
+      // Record-level actions carry { tripId, id: recordId } — the trip is
+      // tripId. Only trip-level actions (UPDATE_TRIP) put the trip in `id`.
+      const id = a.tripId || a.id;
       if (id) dirtyIds.current.add(id);
     }
     try { logOwnActivity(a); } catch (e) { console.warn('[activity]', e); }
