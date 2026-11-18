@@ -123,7 +123,17 @@
   .b svg { width: 1.1em; height: 1.1em; vertical-align: -0.2em; }
   .os { margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.3px; }
   .os:first-of-type { margin-top: 2px; }
-  .note { font-size: 14px; color: var(--ink-3); }
+  .note { display: block; font-size: 14px; color: var(--ink-3); }
+  /* Safari bottom toolbar sketch — where the share button is */
+  .safari-bar {
+    display: flex; justify-content: space-around; align-items: center;
+    max-width: 300px; margin: 8px 0 6px; padding: 10px 6px; border-radius: 22px;
+    background: var(--bg-3); color: var(--ink);
+  }
+  .safari-bar span { display: inline-flex; padding: 5px; border-radius: 12px; }
+  .safari-bar svg { width: 24px; height: 24px; }
+  .safari-bar .dim { opacity: .35; }
+  .safari-bar .hit { box-shadow: 0 0 0 2.5px #e0763c, 0 0 0 7px rgba(224,118,60,.22); background: var(--surface); }
   .tip {
     margin-top: 12px; padding: 10px 12px; border-radius: 12px;
     background: var(--bg-2); font-size: 14px; color: var(--ink-2);
@@ -279,8 +289,9 @@
         <div class="os">iPhone · Safari</div>
         <ol>
           <li>用 <b>Safari</b> 打開 pun。</li>
-          <li>點分享按鈕 <span class="b ico" aria-label="分享"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5a2 2 0 0 0-2-2h-1.5"/><path d="M12 14.5V3M8.5 6.5 12 3l3.5 3.5"/></svg></span>。<br/>
-            <span class="note">iOS 26 以後網址列旁只有 <span class="b ico" aria-label="更多"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg></span>，先點它，再點 <span class="b">分享</span>。</span></li>
+          <li>點下方工具列中間的分享按鈕 <span class="b ico" aria-label="分享"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 8.5h-2A2.5 2.5 0 0 0 5 11v8a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 19v-8a2.5 2.5 0 0 0-2.5-2.5h-2"/><path d="M12 14.5V3.2M8.4 6.8 12 3.2l3.6 3.6"/></svg></span>。
+            <div class="safari-bar" role="img" aria-label="Safari 下方工具列：上一頁、下一頁、分享、書籤、分頁，分享按鈕在中間"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5 7.5 12l7.5 7.5"/></svg></span><span class="dim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5 16.5 12 9 19.5"/></svg></span><span class="hit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 8.5h-2A2.5 2.5 0 0 0 5 11v8a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 19v-8a2.5 2.5 0 0 0-2.5-2.5h-2"/><path d="M12 14.5V3.2M8.4 6.8 12 3.2l3.6 3.6"/></svg></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.8C10.2 5.4 7.7 4.8 4 4.8v13.4c3.7 0 6.2.6 8 2 1.8-1.4 4.3-2 8-2V4.8c-3.7 0-6.2.6-8 2Z"/><path d="M12 6.8v13.4"/></svg></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M8.5 8.5V6.5A2.5 2.5 0 0 1 11 4h6.5A2.5 2.5 0 0 1 20 6.5V13a2.5 2.5 0 0 1-2.5 2.5h-2"/></svg></span></div>
+            <span class="note">下方沒有這排按鈕、網址列旁只有 <span class="b ico" aria-label="更多"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg></span> 的話：先點 <span class="b ico" aria-label="更多"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg></span>，再點 <span class="b">分享</span>。</span></li>
           <li>往下滑，點 <span class="b">加入主畫面</span>。</li>
           <li><b>以網頁 App 開啟</b> 保持開啟（iOS 26 以後才有）→ 點右上角 <span class="b">加入</span>。</li>
         </ol>
