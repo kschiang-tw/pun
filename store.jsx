@@ -144,10 +144,26 @@ const ACTIVITY_VERBS = {
   expense:    { add: '新增了一筆支出', edit: '修改了支出', delete: '刪除了一筆支出' },
   loan:       { add: '記錄了一筆借款', edit: '修改了借款', delete: '刪除了一筆借款' },
   settlement: { add: '記錄了一筆還款', edit: '修改了還款', delete: '刪除了一筆還款' },
+  trip:       { settle: '結清了這趟旅程', unsettle: '取消了旅程結清' },
 };
 
 // Build a Splitwise-style activity entry for a single record change.
 function makeActivity({ trip, meId, actorName, isSelf, action, kind, record }) {
+  if (kind === 'trip') {
+    // Trip-level event (結清 / 取消結清); record = { count } of payments involved
+    const actor = isSelf ? '你' : (actorName || '某人');
+    const verb  = ACTIVITY_VERBS.trip[action];
+    return {
+      id: uid(), tripId: trip.id, tripTitle: trip.title || '旅程',
+      actor, isSelf: !!isSelf, action, kind, verb, subtitle: '',
+      amountText: action === 'settle'
+        ? (record.count ? `記錄 ${record.count} 筆付款 · 大家互不相欠` : '大家互不相欠')
+        : '餘額已恢復成結清前',
+      tone: action === 'settle' ? 'pos' : 'neutral',
+      body: `${actor} ${verb}`,
+      ts: Date.now(), read: !!isSelf,
+    };
+  }
   const nameOf = id => (trip.members || []).find(m => m.id === id)?.name || '?';
   const persp = kind === 'expense'    ? perspectiveExpense(trip, meId, record)
               : kind === 'settlement' ? perspectiveSettlement(trip, meId, record)
@@ -185,6 +201,24 @@ function diffRecordChanges(oldTrip, newTrip) {
   diff('expense', oldTrip.expenses, newTrip.expenses, sigE);
   diff('loan',    oldTrip.loans,    newTrip.loans,    sigL);
   diff('settlement', oldTrip.settlements, newTrip.settlements, sigS);
+  // Trip-level 結清 / 取消結清: report once instead of one entry per payment
+  // that the settle recorded (tagged batch = settledAt).
+  if (!oldTrip.settledAt && newTrip.settledAt) {
+    const batch = newTrip.settledAt;
+    const count = out.filter(c => c.kind === 'settlement' && c.action === 'add' && c.record.batch === batch).length;
+    const rest = out.filter(c => !(c.kind === 'settlement' && c.record.batch === batch));
+    return [...rest, { action: 'settle', kind: 'trip', record: { count } }];
+  }
+  if (oldTrip.settledAt && !newTrip.settledAt) {
+    const batch = oldTrip.settledAt;
+    const undone = out.filter(c => c.kind === 'settlement' && c.action === 'delete' && c.record.batch === batch);
+    // Only a manual 取消結清 removes the batch; an auto-reopen (new expense)
+    // is already reported by that record change itself.
+    if (undone.length || !out.length) {
+      const rest = out.filter(c => !undone.includes(c));
+      return [...rest, { action: 'unsettle', kind: 'trip', record: {} }];
+    }
+  }
   return out;
 }
 
@@ -232,6 +266,16 @@ function makeDemoTrip(ownerId) {
     ownerId, collaborators: [], shareCode: null,
     isDemo: true,
   };
+}
+
+// ── Trip-level 結清 ──────────────────────────────────────────────────────────
+// Editing a settled trip's ledger reopens it (結清狀態自動取消).
+function reopen(t) {
+  return t.settledAt ? { ...t, settledAt: null, settledBy: null } : t;
+}
+// Rate changes only reopen it when they actually leave someone owing money.
+function reopenIfUnbalanced(t) {
+  return t.settledAt && ENGINE.simplify(t).length ? reopen(t) : t;
 }
 
 // ── Reducer ───────────────────────────────────────────────────────────────────
@@ -329,7 +373,7 @@ function reducer(state, action) {
     case 'REMOVE_MEMBER': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, members: t.members.filter(m => m.id !== a.memberId) } } };
+        [a.tripId]: reopen({ ...t, members: t.members.filter(m => m.id !== a.memberId) }) } };
     }
 
     case 'SET_ME': {
@@ -350,18 +394,18 @@ function reducer(state, action) {
     case 'SET_RATE': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, rates: { ...t.rates, [a.ccy]: a.rate },
-          ratesUpdatedAt: Date.now() } } };
+        [a.tripId]: reopenIfUnbalanced({ ...t, rates: { ...t.rates, [a.ccy]: a.rate },
+          ratesUpdatedAt: Date.now() }) } };
     }
 
     case 'SET_RATES_BULK': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, rates: { ...t.rates, ...a.rates },
+        [a.tripId]: reopenIfUnbalanced({ ...t, rates: { ...t.rates, ...a.rates },
           ratesUpdatedAt: Date.now(),
           rateMode: a.rateMode ?? t.rateMode,
           liveRatesFetchedAt: a.rateMode === 'live' ? Date.now() : t.liveRatesFetchedAt,
-        } } };
+        }) } };
     }
 
     case 'SET_RATE_MODE': {
@@ -380,10 +424,10 @@ function reducer(state, action) {
       }
       rates[a.ccy] = 1;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, baseCurrency: a.ccy, rates,
+        [a.tripId]: reopenIfUnbalanced({ ...t, baseCurrency: a.ccy, rates,
           ratesUpdatedAt: Date.now(),
           // Force a refetch in live mode: division keeps ratios but loses source precision.
-          liveRatesFetchedAt: null } } };
+          liveRatesFetchedAt: null }) } };
     }
 
     case 'TOGGLE_CCY': {
@@ -400,33 +444,33 @@ function reducer(state, action) {
       const t = state.trips[a.tripId]; if (!t) return state;
       const e = { id: uid(), createdAt: Date.now(), ...a.expense };
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, expenses: [e, ...t.expenses] } } };
+        [a.tripId]: reopen({ ...t, expenses: [e, ...t.expenses] }) } };
     }
 
     case 'UPDATE_EXPENSE': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t,
-          expenses: t.expenses.map(e => e.id === a.id ? { ...e, ...a.patch } : e) } } };
+        [a.tripId]: reopen({ ...t,
+          expenses: t.expenses.map(e => e.id === a.id ? { ...e, ...a.patch } : e) }) } };
     }
 
     case 'DELETE_EXPENSE': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, expenses: t.expenses.filter(e => e.id !== a.id) } } };
+        [a.tripId]: reopen({ ...t, expenses: t.expenses.filter(e => e.id !== a.id) }) } };
     }
 
     case 'ADD_LOAN': {
       const t = state.trips[a.tripId]; if (!t) return state;
       const l = { id: uid(), createdAt: Date.now(), ...a.loan };
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, loans: [...(t.loans || []), l] } } };
+        [a.tripId]: reopen({ ...t, loans: [...(t.loans || []), l] }) } };
     }
 
     case 'DELETE_LOAN': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, loans: (t.loans || []).filter(l => l.id !== a.id) } } };
+        [a.tripId]: reopen({ ...t, loans: (t.loans || []).filter(l => l.id !== a.id) }) } };
     }
 
     // Settle-up payments ("結清"): from = 付款人, to = 收款人
@@ -434,20 +478,44 @@ function reducer(state, action) {
       const t = state.trips[a.tripId]; if (!t) return state;
       const p = { id: uid(), createdAt: Date.now(), ...a.settlement };
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, settlements: [...(t.settlements || []), p] } } };
+        [a.tripId]: reopen({ ...t, settlements: [...(t.settlements || []), p] }) } };
     }
 
     case 'UPDATE_SETTLEMENT': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t,
-          settlements: (t.settlements || []).map(p => p.id === a.id ? { ...p, ...a.patch } : p) } } };
+        [a.tripId]: reopen({ ...t,
+          settlements: (t.settlements || []).map(p => p.id === a.id ? { ...p, ...a.patch } : p) }) } };
     }
 
     case 'DELETE_SETTLEMENT': {
       const t = state.trips[a.tripId]; if (!t) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: { ...t, settlements: (t.settlements || []).filter(p => p.id !== a.id) } } };
+        [a.tripId]: reopen({ ...t, settlements: (t.settlements || []).filter(p => p.id !== a.id) }) } };
+    }
+
+    // 結清這趟旅程: record every remaining transfer as paid (tagged with this
+    // settle's batch id) and flag the whole trip as settled.
+    case 'SETTLE_TRIP': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      const at = a.at || Date.now();
+      const adds = ENGINE.simplify(t).map(tr => ({
+        id: uid(), createdAt: at, from: tr.from, to: tr.to, amount: tr.amount,
+        ccy: t.baseCurrency, date: a.date, note: '', batch: at,
+      }));
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t, settlements: [...(t.settlements || []), ...adds],
+          settledAt: at, settledBy: a.by || null } } };
+    }
+
+    // 取消結清: undo the settle — drop the payments it recorded, clear the flag.
+    case 'UNSETTLE_TRIP': {
+      const t = state.trips[a.tripId]; if (!t) return state;
+      const batch = t.settledAt;
+      return { ...state, trips: { ...state.trips,
+        [a.tripId]: { ...t,
+          settlements: (t.settlements || []).filter(p => !batch || p.batch !== batch),
+          settledAt: null, settledBy: null } } };
     }
 
     case 'RESET':
@@ -761,7 +829,7 @@ function StoreProvider({ children }) {
   const USER_WRITE_ACTIONS = [
     'UPDATE_TRIP','ADD_EXPENSE','UPDATE_EXPENSE','DELETE_EXPENSE',
     'ADD_LOAN','DELETE_LOAN','ADD_MEMBER','REMOVE_MEMBER',
-    'ADD_SETTLEMENT','UPDATE_SETTLEMENT','DELETE_SETTLEMENT',
+    'ADD_SETTLEMENT','UPDATE_SETTLEMENT','DELETE_SETTLEMENT','SETTLE_TRIP','UNSETTLE_TRIP',
     'SET_RATE','SET_RATES_BULK','SET_RATE_MODE','TOGGLE_CCY','SET_BASE_CCY',
   ];
   // Log *your own* record actions to the activity feed (actor = 你).
@@ -793,6 +861,10 @@ function StoreProvider({ children }) {
     } else if (a.type === 'DELETE_SETTLEMENT') {
       const p = (trip.settlements || []).find(x => x.id === a.id);
       if (p) entry = makeActivity({ ...base, action: 'delete', kind: 'settlement', record: p });
+    } else if (a.type === 'SETTLE_TRIP') {
+      entry = makeActivity({ ...base, action: 'settle', kind: 'trip', record: { count: ENGINE.simplify(trip).length } });
+    } else if (a.type === 'UNSETTLE_TRIP' && trip.settledAt) {
+      entry = makeActivity({ ...base, action: 'unsettle', kind: 'trip', record: {} });
     }
     if (entry) addNotifications([entry]);
   }

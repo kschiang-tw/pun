@@ -13,13 +13,25 @@ function TripScreen({ go, tripId }) {
   const me = trip.members.find(m => m.isMe) || trip.members[0];
   const myBal = me ? net[me.id] : 0;
   const settled = ENGINE.isSettled(myBal, trip.baseCurrency);
+  const tripSettled = ENGINE.isTripSettled(trip);
+  const hasTransfers = ENGINE.simplify(trip).length > 0;
   const expenses = [...trip.expenses].sort((a,b) => b.date.localeCompare(a.date));
   const payments = trip.settlements || [];
   const memberName = id => trip.members.find(m => m.id === id)?.name || '?';
-  // Expenses and settle-up payments in one timeline (Splitwise-style).
-  // Same-day payments go first; stable sort keeps expense order intact.
+  // Partial payments show one by one; the payments a 結清 recorded (same
+  // batch) collapse into a single "旅程結清" row.
+  const batches = {};
+  const singles = [];
+  for (const p of payments) {
+    if (p.batch) (batches[p.batch] = batches[p.batch] || []).push(p);
+    else singles.push(p);
+  }
+  // Expenses and payments in one timeline (Splitwise-style). Same-day
+  // payments go first; stable sort keeps expense order intact.
   const items = [
-    ...[...payments].reverse().map(p => ({ kind: 'pay', id: p.id, date: p.date || '', rec: p })),
+    ...Object.entries(batches).sort((a,b) => b[0] - a[0])
+      .map(([id, ps]) => ({ kind: 'settle', id, date: ps[0].date || '', rec: ps })),
+    ...[...singles].reverse().map(p => ({ kind: 'pay', id: p.id, date: p.date || '', rec: p })),
     ...expenses.map(e => ({ kind: 'exp', id: e.id, date: e.date, rec: e })),
   ].sort((a,b) => b.date.localeCompare(a.date));
 
@@ -38,6 +50,7 @@ function TripScreen({ go, tripId }) {
           <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.4 }}>{trip.title}</div>
           <div style={{ fontSize: 12, opacity: 0.92, marginTop: 2 }}>
             {fmtDateRange(trip.startDate, trip.endDate)} · {trip.members.length} 人
+            {tripSettled && <span style={{ fontWeight: 600 }}> · ✓ 已結清</span>}
           </div>
         </div>
       </div>
@@ -58,11 +71,12 @@ function TripScreen({ go, tripId }) {
                 {settled ? '' : myBal > 0 ? '+' : '−'}{fmtBase(settled ? 0 : Math.abs(myBal), trip)}
               </div>
               <div className="t-meta" style={{ marginTop: 2 }}>
-                {!settled ? (myBal > 0 ? '其他人應付給你' : '你應付給其他人')
-                  : payments.length ? '已結清 ✓' : '已結平'}
+                {tripSettled ? `旅程已於 ${fmtDate(ENGINE.localDate(trip.settledAt)).split(' ')[0]} 結清 ✓`
+                  : !settled ? (myBal > 0 ? '其他人應付給你' : '你應付給其他人')
+                  : '已結平'}
               </div>
             </div>
-            {!settled && (
+            {!tripSettled && hasTransfers && (
               <button onClick={() => go('settle', { tripId: trip.id })} style={{
                 border: 0, background: 'var(--ink)', color: 'var(--bg)',
                 padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -107,7 +121,7 @@ function TripScreen({ go, tripId }) {
 
       {/* Expenses list */}
       <div style={{ padding: '14px 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="t-cap">支出 · {expenses.length}{payments.length > 0 && `　還款 · ${payments.length}`}</div>
+        <div className="t-cap">支出 · {expenses.length}{singles.length > 0 && `　還款 · ${singles.length}`}</div>
       </div>
 
       {items.length === 0 && (
@@ -124,6 +138,40 @@ function TripScreen({ go, tripId }) {
               {it.date ? fmtDate(it.date) : '—'}
             </div>
           );
+          if (it.kind === 'settle') {
+            const ps = it.rec;
+            const total = ps.reduce((sum, p) => sum + ENGINE.toBase(p.amount, p.ccy, trip.rates), 0);
+            return (
+              <React.Fragment key={'s' + it.id}>
+                {dayHeader}
+                <button onClick={() => go('settle', { tripId: trip.id })} className="card" style={{
+                  width: '100%', textAlign: 'left', border: '0.5px solid var(--hairline)',
+                  padding: '12px 14px', marginBottom: 6,
+                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                  fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--sage-soft)',
+                  borderRadius: 'var(--r-lg)',
+                }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: 'var(--sage-deep)', color: 'var(--bg)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}><Icon.check width={20} height={20}/></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="t-h" style={{ fontSize: 14 }}>旅程結清</div>
+                    <div className="t-meta" style={{ marginTop: 2, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {ps.map(p => `${memberName(p.from)} → ${memberName(p.to)}`).join('、')}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="t-amount tabular" style={{ fontSize: 14, fontWeight: 600, color: 'var(--sage-deep)' }}>
+                      {fmtBase(total, trip)}
+                    </div>
+                    <div className="t-meta" style={{ fontSize: 10, marginTop: 2 }}>{ps.length} 筆付款</div>
+                  </div>
+                </button>
+              </React.Fragment>
+            );
+          }
           if (it.kind === 'pay') {
             const p = it.rec;
             return (
@@ -386,15 +434,32 @@ function SettleScreen({ go, tripId }) {
   const loans = trip.loans || [];
   const payments = [...(trip.settlements || [])].sort((a,b) =>
     (b.date||'').localeCompare(a.date||'') || (b.createdAt||0) - (a.createdAt||0));
-  const meId = (trip.members.find(m => m.isMe) || {}).id;
-  const done = transfers.length === 0;
+  const meMember = trip.members.find(m => m.isMe);
+  const meId = meMember?.id;
+  const settled = ENGINE.isTripSettled(trip);
+  const batchCount = settled ? payments.filter(p => p.batch === trip.settledAt).length : 0;
 
-  const settleAll = () => {
-    if (!confirm(`將 ${transfers.length} 筆轉帳全部記為「已付款」？\n之後仍可在還款紀錄中修改或刪除。`)) return;
-    const date = localToday();
-    transfers.forEach(tr => dispatch({ type: 'ADD_SETTLEMENT', tripId, settlement: {
-      from: tr.from, to: tr.to, amount: tr.amount, ccy: trip.baseCurrency, date, note: '',
-    } }));
+  // 結清這趟旅程: everyone has paid → record remaining transfers + flag the trip
+  const settleTrip = () => {
+    const msg = transfers.length
+      ? `確認大家都已經付款了嗎？\n\n會把 ${transfers.length} 筆轉帳記為已付款，並將「${trip.title}」標記為已結清。\n之後若新增或修改支出，會自動取消結清。`
+      : `將「${trip.title}」標記為已結清？\n\n之後若新增或修改支出，會自動取消結清。`;
+    if (!confirm(msg)) return;
+    dispatch({ type: 'SETTLE_TRIP', tripId, at: Date.now(), date: localToday(), by: meMember?.name || null });
+  };
+  const unsettleTrip = () => {
+    const msg = batchCount
+      ? `取消結清？\n\n結清時記錄的 ${batchCount} 筆付款會一併刪除，大家的餘額會回到結清前。`
+      : '取消結清？';
+    if (!confirm(msg)) return;
+    dispatch({ type: 'UNSETTLE_TRIP', tripId });
+  };
+
+  const primaryBtn = {
+    width: '100%', border: 0, background: 'var(--ink)', color: 'var(--bg)',
+    padding: '15px 0', borderRadius: 16, fontSize: 15, fontWeight: 600,
+    cursor: 'pointer', fontFamily: 'inherit',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
   };
 
   return (
@@ -413,73 +478,95 @@ function SettleScreen({ go, tripId }) {
         </button>
       </div>
 
-      <div style={{ padding: '8px 24px 0' }}>
-        <div className="t-cap">{done ? '結清狀態' : '最少筆數結算'}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
-          {done && (
+      {settled ? (
+        /* ── Trip is settled ── */
+        <div style={{ padding: '8px 16px 0' }}>
+          <div className="card glass-thick" style={{ padding: '24px 20px', borderRadius: 22, textAlign: 'center' }}>
             <div style={{
-              width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+              width: 56, height: 56, borderRadius: '50%', margin: '0 auto 12px',
               background: 'var(--sage-soft)', color: 'var(--sage-deep)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}><Icon.check width={22} height={22}/></div>
-          )}
-          <div className="t-display" style={{ fontSize: 30 }}>
-            {done ? (payments.length ? '全部結清' : '已經結平')
-              : payments.length ? `還差 ${transfers.length} 筆` : `${transfers.length} 筆轉帳就完成`}
+            }}><Icon.check width={30} height={30}/></div>
+            <div className="t-display" style={{ fontSize: 28 }}>旅程已結清</div>
+            <div className="t-meta" style={{ marginTop: 6 }}>
+              {fmtDate(ENGINE.localDate(trip.settledAt))}
+              {trip.settledBy ? ` 由 ${trip.settledBy} 結清` : ' 結清'}
+              {batchCount > 0 && ` · 記錄了 ${batchCount} 筆付款`}
+            </div>
+            <div className="t-meta" style={{ marginTop: 10, fontSize: 12 }}>
+              大家互不相欠。之後若新增或修改支出，會自動取消結清。
+            </div>
+            <button onClick={unsettleTrip} style={{
+              marginTop: 16, border: '0.5px solid var(--hairline-strong)', background: 'transparent',
+              color: 'var(--ink-2)', padding: '9px 18px', borderRadius: 999,
+              fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            }}>取消結清</button>
           </div>
         </div>
-        <div className="t-meta" style={{ marginTop: 8 }}>
-          {done
-            ? (payments.length ? `已記錄 ${payments.length} 筆還款，大家互不相欠。` : '目前沒有人需要付款。')
-            : '系統試過所有組合，這是最少筆數的解。付款後按「結清」記錄，餘額會自動更新。'}
-        </div>
-      </div>
+      ) : (
+        /* ── Not settled yet ── */
+        <>
+          <div style={{ padding: '8px 24px 0' }}>
+            <div className="t-cap">最少筆數結算</div>
+            <div className="t-display" style={{ fontSize: 30, marginTop: 6 }}>
+              {transfers.length === 0 ? '大家互不相欠' : `${transfers.length} 筆轉帳就結清`}
+            </div>
+            <div className="t-meta" style={{ marginTop: 8 }}>
+              {transfers.length === 0
+                ? (trip.expenses.length ? '沒有人需要付款，可以直接把旅程標記為已結清。' : '目前還沒有任何支出。')
+                : '系統試過所有組合，這是最少筆數的解。大家照下面付完款後，按「結清這趟旅程」。'}
+            </div>
+          </div>
 
-      {transfers.length > 0 && (
-        <div style={{ padding: '20px 16px 0' }}>
-          {transfers.map((tr, i) => {
-            const from = memberOf(tr.from), to = memberOf(tr.to);
-            const hint = tr.from === meId ? '你付款後即可結清'
-              : tr.to === meId ? '收到款項後記錄即可結清'
-              : '付款後任何人都可以記錄';
-            return (
-              <div key={tr.from + '>' + tr.to} className="card glass-thick" style={{ padding: 18, marginBottom: 10, borderRadius: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Avatar member={from} size={44}/>
-                  <Icon.arrow width={18} height={18} style={{ color: 'var(--ink-3)' }}/>
-                  <Avatar member={to} size={44}/>
-                  <div style={{ flex: 1, marginLeft: 8, minWidth: 0 }}>
-                    <div className="t-h" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                      <b style={{ color: 'var(--ink)' }}>{from?.name}</b> 應付給 <b style={{ color: 'var(--ink)' }}>{to?.name}</b>
+          {transfers.length > 0 && (
+            <div style={{ padding: '20px 16px 0' }}>
+              {transfers.map(tr => {
+                const from = memberOf(tr.from), to = memberOf(tr.to);
+                return (
+                  <div key={tr.from + '>' + tr.to} className="card glass-thick" style={{ padding: 18, marginBottom: 10, borderRadius: 18 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Avatar member={from} size={44}/>
+                      <Icon.arrow width={18} height={18} style={{ color: 'var(--ink-3)' }}/>
+                      <Avatar member={to} size={44}/>
+                      <div style={{ flex: 1, marginLeft: 8, minWidth: 0 }}>
+                        <div className="t-h" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                          <b style={{ color: 'var(--ink)' }}>{from?.name}</b> 應付給 <b style={{ color: 'var(--ink)' }}>{to?.name}</b>
+                        </div>
+                        <div className="t-amount" style={{ fontSize: 24, fontWeight: 600, marginTop: 2 }}>
+                          {fmtBase(tr.amount, trip)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="t-amount" style={{ fontSize: 24, fontWeight: 600, marginTop: 2 }}>
-                      {fmtBase(tr.amount, trip)}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 10 }}>
+                      <div className="t-meta" style={{ fontSize: 11 }}>
+                        {tr.from === meId ? '你要付的' : tr.to === meId ? '你要收的' : ''}
+                      </div>
+                      <button onClick={() => setSheet({ preset: tr })} style={{
+                        border: 0, background: 'transparent', color: 'var(--ink-3)', flexShrink: 0,
+                        padding: '4px 2px', fontSize: 12, fontWeight: 500,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}>先付一部分？記錄還款 ›</button>
                     </div>
                   </div>
-                </div>
-                <div style={{ height: 0.5, background: 'var(--hairline)', margin: '14px -18px 12px' }}/>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <div className="t-meta" style={{ fontSize: 12 }}>{hint}</div>
-                  <button onClick={() => setSheet({ preset: tr })} style={{
-                    border: 0, background: 'var(--ink)', color: 'var(--bg)', flexShrink: 0,
-                    padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                  }}>
-                    <Icon.check width={14} height={14}/> 結清
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {transfers.length > 1 && (
-            <button onClick={settleAll} style={{
-              width: '100%', border: '0.5px solid var(--hairline-strong)', background: 'transparent',
-              color: 'var(--ink-2)', padding: '12px 0', borderRadius: 14, marginTop: 2,
-              fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-            }}>全部標記為已結清</button>
+                );
+              })}
+            </div>
           )}
-        </div>
+
+          {(transfers.length > 0 || trip.expenses.length > 0) && (
+            <div style={{ padding: '10px 16px 0' }}>
+              <button onClick={settleTrip} style={primaryBtn}>
+                <Icon.check width={18} height={18}/>
+                {transfers.length ? '結清這趟旅程' : '標記為已結清'}
+              </button>
+              {transfers.length > 0 && (
+                <div className="t-meta" style={{ fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+                  會把上面 {transfers.length} 筆轉帳記為已付款，並將旅程標記為已結清
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Settle-up payments */}
@@ -497,7 +584,7 @@ function SettleScreen({ go, tripId }) {
       <div style={{ padding: '0 16px' }}>
         {payments.length === 0 ? (
           <div className="t-meta" style={{ padding: '10px 4px', fontSize: 13 }}>
-            尚無還款紀錄。實際付款後按「結清」，餘額就會扣掉。
+            尚無還款紀錄。若有人先付一部分，可以在這裡記錄，餘額會跟著扣掉。
           </div>
         ) : (
           <div className="card" style={{ padding: '4px 16px' }}>
@@ -518,7 +605,7 @@ function SettleScreen({ go, tripId }) {
                       <b>{payer?.name || '?'}</b> 付給 <b>{receiver?.name || '?'}</b>
                     </div>
                     <div className="t-meta" style={{ fontSize: 11, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {p.date ? fmtDate(p.date) : '—'}{p.note ? ` · ${p.note}` : ''}
+                      {p.date ? fmtDate(p.date) : '—'}{p.batch ? ' · 結清' : ''}{p.note ? ` · ${p.note}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>

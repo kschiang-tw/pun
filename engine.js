@@ -126,6 +126,13 @@ const ENGINE = (() => {
     return out;
   }
 
+  // Trip-level "結清": flagged by someone AND nothing left to pay. The balance
+  // check keeps it honest if amounts drift (e.g. a client that predates the
+  // flag edits an expense without clearing it).
+  function isTripSettled(trip) {
+    return !!trip.settledAt && simplify(trip).length === 0;
+  }
+
   function totals(trip) {
     const { members, expenses, rates } = trip;
     let spent = 0;
@@ -149,6 +156,12 @@ const ENGINE = (() => {
   }
 
   function round2(n) { return Math.round(n * 100) / 100; }
+
+  // Timestamp → local YYYY-MM-DD (toISOString() would give the UTC day).
+  function localDate(ts) {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
   // Rates need significant-digit rounding, not fixed decimals:
   // round2(1/46.9) = 0.02 loses 6% for KRW; VND would collapse to 0.
@@ -276,14 +289,18 @@ const ENGINE = (() => {
     if (pays.length) {
       rows.push([]);
       rows.push(['Settlements']);
-      rows.push(['Date','Payer','Receiver','Amount','Currency','Base ('+trip.baseCurrency+')','Note']);
+      rows.push(['Date','Payer','Receiver','Amount','Currency','Base ('+trip.baseCurrency+')','Type','Note']);
       for (const p of pays) {
         rows.push([
           p.date || '', memberById[p.from] || p.from, memberById[p.to] || p.to,
           p.amount, p.ccy, round2(toBase(p.amount, p.ccy, trip.rates)),
-          p.note || '',
+          p.batch ? 'Settle-up' : 'Payment', p.note || '',
         ]);
       }
+    }
+    if (isTripSettled(trip)) {
+      rows.push([]);
+      rows.push(['Settled', localDate(trip.settledAt), trip.settledBy || '']);
     }
     return rows.map(r => r.map(cell => {
       const s = String(cell ?? '');
@@ -325,15 +342,17 @@ const ENGINE = (() => {
     if (pays.length) {
       const zero = new Set(['JPY','KRW','VND','IDR','ISK','HUF','TWD','CLP']);
       const fmtCcy = (n, c) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: zero.has(c) ? 0 : 2 }) + ' ' + (sym[c] || c);
-      lines.push(`— 已還款 (${pays.length} 筆) —`);
+      lines.push(`— 付款紀錄 (${pays.length} 筆) —`);
       for (const p of pays) {
         const base = p.ccy !== trip.baseCurrency ? `（≈ ${fmt(toBase(p.amount, p.ccy, trip.rates))}）` : '';
-        lines.push(`${memberById[p.from]} 已付給 ${memberById[p.to]}：${fmtCcy(p.amount, p.ccy)}${base}`);
+        lines.push(`${memberById[p.from]} 已付給 ${memberById[p.to]}：${fmtCcy(p.amount, p.ccy)}${base}${p.batch ? '（結清）' : ''}`);
       }
       lines.push('');
     }
-    if (tr.length === 0) {
-      lines.push(pays.length ? '✓ 已全部結清' : '✓ 已結平，無需轉帳');
+    if (isTripSettled(trip)) {
+      lines.push(`✓ 旅程已於 ${localDate(trip.settledAt)} 結清`);
+    } else if (tr.length === 0) {
+      lines.push('✓ 已結平，無需轉帳');
     } else {
       lines.push(pays.length ? `— 尚未結清 (${tr.length} 筆) —` : `— 結算 (${tr.length} 筆) —`);
       for (const x of tr) {
@@ -345,7 +364,7 @@ const ENGINE = (() => {
 
   return { computeShares, computeSplit, toBase, netBalances, simplify, totals,
     byCategory, byDay, toCSV, toShareText, calc, round2, roundRate, fmtRate, paidByMap,
-    dust, isSettled };
+    dust, isSettled, isTripSettled, localDate };
 })();
 
 window.ENGINE = ENGINE;

@@ -120,6 +120,81 @@ function HomeScreen({ go }) {
     if (ac !== bc) return (bc ? 1 : 0) - (ac ? 1 : 0);
     return b.startDate.localeCompare(a.startDate);
   });
+  // Settled trips (結清) move to their own section below the active ones;
+  // the pinned 目前旅程 always stays on top.
+  const activeTrips  = trips.filter(t => t.id === currentTripId || !ENGINE.isTripSettled(t));
+  const settledTrips = trips.filter(t => t.id !== currentTripId && ENGINE.isTripSettled(t));
+
+  function renderTripCard(t, i, compact) {
+    const tots = ENGINE.totals(t);
+    const net = ENGINE.netBalances(t);
+    const me = t.members.find(m => m.isMe) || t.members[0];
+    const myBal = me ? net[me.id] : 0;
+    const settled = ENGINE.isSettled(myBal, t.baseCurrency);
+    const tripSettled = ENGINE.isTripSettled(t);
+    const big = !compact && i === 0;
+    return (
+      <button key={t.id} onClick={() => go('trip', { tripId: t.id })}
+        style={{
+          width: '100%', textAlign: 'left', border: 0, padding: 0,
+          cursor: 'pointer', marginBottom: compact ? 10 : 14,
+          borderRadius: 'var(--r-xl)', overflow: 'hidden',
+          background: COVERS[t.cover % COVERS.length], position: 'relative',
+          height: big ? 200 : compact ? 118 : 150,
+          boxShadow: '0 4px 20px color-mix(in oklch, var(--ink) 12%, transparent)',
+        }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.18), transparent 40%, rgba(0,0,0,0.22))',
+        }}/>
+        <div style={{ position: 'absolute', top: 14, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+            {t.id === currentTripId && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                letterSpacing: 0.4, color: 'var(--ink)',
+                background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              }}>
+                <Icon.pin width={11} height={11}/>目前旅程
+              </span>
+            )}
+            <span style={{
+              padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600,
+              letterSpacing: 0.4, color: '#fff', textTransform: 'uppercase',
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}>{t.members.length} 人 · {t.currencies.length} 幣別</span>
+          </div>
+          <AvatarStack members={t.members.slice(0, 3)} size={22}/>
+        </div>
+        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 14, color: '#fff' }}>
+          <div style={{ fontSize: big ? 22 : compact ? 16 : 18, fontWeight: 600, letterSpacing: -0.3 }}>{t.title}</div>
+          <div style={{
+            fontSize: 12, opacity: 0.9, marginTop: 2,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+          }}>
+            <span>{fmtDateRange(t.startDate, t.endDate)}</span>
+            <span style={{ fontWeight: 600, fontFamily: 'var(--font-num)' }}>
+              {fmtBase(tots.spent, t)}
+            </span>
+          </div>
+          {(tripSettled || !settled) && (
+            <div style={{ marginTop: 8 }}>
+              <span style={{
+                padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600,
+                color: '#fff', background: 'rgba(255,255,255,0.22)',
+              }}>{tripSettled ? '✓ 已結清'
+                : `${myBal > 0 ? '應收' : '應付'} ${fmtBase(Math.abs(myBal), t)}`}</span>
+            </div>
+          )}
+        </div>
+      </button>
+    );
+  }
+
   const [showAbout, setShowAbout] = React.useState(false);
   const [showJoin,  setShowJoin]  = React.useState(false);
   const [showNotif, setShowNotif] = React.useState(false);
@@ -183,74 +258,17 @@ function HomeScreen({ go }) {
       )}
 
       <div style={{ padding: '12px 20px 0' }}>
-        {trips.map((t, i) => {
-          const tots = ENGINE.totals(t);
-          const net = ENGINE.netBalances(t);
-          const me = t.members.find(m => m.isMe) || t.members[0];
-          const myBal = me ? net[me.id] : 0;
-          const settled = ENGINE.isSettled(myBal, t.baseCurrency);
-          return (
-            <button key={t.id} onClick={() => go('trip', { tripId: t.id })}
-              style={{
-                width: '100%', textAlign: 'left', border: 0, padding: 0,
-                cursor: 'pointer', marginBottom: 14,
-                borderRadius: 'var(--r-xl)', overflow: 'hidden',
-                background: COVERS[t.cover % COVERS.length], position: 'relative',
-                height: i === 0 ? 200 : 150,
-                boxShadow: '0 4px 20px color-mix(in oklch, var(--ink) 12%, transparent)',
-              }}>
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(160deg, rgba(255,255,255,0.18), transparent 40%, rgba(0,0,0,0.22))',
-              }}/>
-              <div style={{ position: 'absolute', top: 14, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-                  {t.id === currentTripId && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
-                      letterSpacing: 0.4, color: 'var(--ink)',
-                      background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    }}>
-                      <Icon.pin width={11} height={11}/>目前旅程
-                    </span>
-                  )}
-                  <span style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600,
-                    letterSpacing: 0.4, color: '#fff', textTransform: 'uppercase',
-                    background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                  }}>{t.members.length} 人 · {t.currencies.length} 幣別</span>
-                </div>
-                <AvatarStack members={t.members.slice(0, 3)} size={22}/>
-              </div>
-              <div style={{ position: 'absolute', left: 18, right: 18, bottom: 14, color: '#fff' }}>
-                <div style={{ fontSize: i===0?22:18, fontWeight: 600, letterSpacing: -0.3 }}>{t.title}</div>
-                <div style={{
-                  fontSize: 12, opacity: 0.9, marginTop: 2,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
-                }}>
-                  <span>{fmtDateRange(t.startDate, t.endDate)}</span>
-                  <span style={{ fontWeight: 600, fontFamily: 'var(--font-num)' }}>
-                    {fmtBase(tots.spent, t)}
-                  </span>
-                </div>
-                {(!settled || (t.settlements || []).length > 0) && (
-                  <div style={{ marginTop: 8 }}>
-                    <span style={{
-                      padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600,
-                      color: '#fff', background: 'rgba(255,255,255,0.22)',
-                    }}>{settled ? '✓ 已結清'
-                      : `${myBal > 0 ? '應收' : '應付'} ${fmtBase(Math.abs(myBal), t)}`}</span>
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
+        {activeTrips.map((t, i) => renderTripCard(t, i, false))}
       </div>
+
+      {settledTrips.length > 0 && (
+        <div style={{ padding: '14px 20px 0' }}>
+          <div className="t-cap" style={{ padding: '0 4px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon.check width={12} height={12}/> 已結清 · {settledTrips.length}
+          </div>
+          {settledTrips.map((t, i) => renderTripCard(t, i, true))}
+        </div>
+      )}
 
       {(() => {
         const demoTrip = Object.values(s.trips).find(t => t.isDemo);
@@ -377,7 +395,8 @@ function NotificationSheet({ go, onClose }) {
               const iconKey = n.action === 'delete' ? 'trash'
                 : n.action === 'edit' ? 'pencil'
                 : n.kind === 'loan' ? 'swap'
-                : n.kind === 'settlement' ? 'check' : 'receipt';
+                : n.kind === 'settlement' ? 'check'
+                : n.kind === 'trip' ? (n.action === 'settle' ? 'check' : 'close') : 'receipt';
               const toneColor = n.tone === 'pos' ? 'var(--pos)'
                 : n.tone === 'neg' ? 'var(--neg)' : 'var(--ink-3)';
               const struck = n.action === 'delete';

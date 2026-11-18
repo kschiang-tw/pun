@@ -227,7 +227,9 @@ function RatesScreen({ go, tripId }) {
   }, [trip.baseCurrency, trip.currencies, tripId, dispatch]);
 
   React.useEffect(() => {
-    if (rateMode !== 'live') return;
+    // A settled trip keeps the rates it was settled at — an automatic refresh
+    // would shift foreign-currency balances and reopen it behind everyone's back.
+    if (rateMode !== 'live' || ENGINE.isTripSettled(trip)) return;
     const stale = !trip.liveRatesFetchedAt || (Date.now() - trip.liveRatesFetchedAt) > 3600 * 1000;
     if (stale && !fetching) fetchLive();
   }, [rateMode, trip.baseCurrency]);
@@ -511,6 +513,7 @@ function ExportScreen({ go, tripId }) {
   const sorted = [...trip.expenses].sort((a,b) => a.date.localeCompare(b.date));
   const loans = [...(trip.loans || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
   const payments = [...(trip.settlements || [])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const tripSettled = ENGINE.isTripSettled(trip);
 
   const downloadCSV = () => {
     const csv = '\ufeff' + ENGINE.toCSV(trip);
@@ -651,6 +654,7 @@ function ExportScreen({ go, tripId }) {
                   <span>{p.date ? fmtMD(p.date) : '—'}</span>
                   <span style={{ fontFamily:'var(--font-sans)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     <b>{memberById[p.from]?.name || '?'}</b> → <b>{memberById[p.to]?.name || '?'}</b>
+                    {p.batch && <span style={{ color:'var(--ink-3)', marginLeft:4 }}>· 結清</span>}
                     {p.note && <span style={{ color:'var(--ink-3)', marginLeft:4 }}>· {p.note}</span>}
                   </span>
                   <span style={{ textAlign:'right', color:'var(--ink-3)' }}>{p.ccy}</span>
@@ -663,11 +667,13 @@ function ExportScreen({ go, tripId }) {
 
           <div style={{ marginTop:14, padding:'12px 14px', borderRadius:8, background:'oklch(0.94 0.020 145)', color:'var(--sage-deep)' }}>
             <div style={{ fontFamily:'var(--font-sans)', fontSize:9, fontWeight:700, letterSpacing:0.6, marginBottom:6 }}>
-              {!payments.length ? `SETTLEMENT · 最少 ${transfers.length} 筆`
-                : transfers.length ? `SETTLEMENT · 尚需 ${transfers.length} 筆` : 'SETTLEMENT · 已結清'}
+              {tripSettled ? 'SETTLEMENT · 已結清'
+                : payments.length ? `SETTLEMENT · 尚需 ${transfers.length} 筆` : `SETTLEMENT · 最少 ${transfers.length} 筆`}
             </div>
             {transfers.length === 0
-              ? <div style={{ fontFamily:'var(--font-sans)', fontSize:12 }}>{payments.length ? '✓ 已全部結清' : '✓ 已結平，無需轉帳'}</div>
+              ? <div style={{ fontFamily:'var(--font-sans)', fontSize:12 }}>
+                  {tripSettled ? `✓ 旅程已於 ${ENGINE.localDate(trip.settledAt)} 結清${trip.settledBy ? `（${trip.settledBy}）` : ''}` : '✓ 已結平，無需轉帳'}
+                </div>
               : transfers.map((tr, i) => (
                 <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', fontSize:11 }}>
                   <span style={{ fontFamily:'var(--font-sans)' }}><b>{memberById[tr.from]?.name}</b> → <b>{memberById[tr.to]?.name}</b></span>

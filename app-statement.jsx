@@ -78,7 +78,7 @@ function StatementScreen({ go, tripId }) {
               </div>
               <div style={{ fontSize:10, color:'#666', marginTop:1 }}>
                 {data.net>0.5 ? '其他成員應付給你' : data.net<-0.5 ? '你應付給其他成員'
-                  : data.payments.length ? '已結清' : '已結平'}
+                  : ENGINE.isTripSettled(trip) ? `旅程已於 ${ENGINE.localDate(trip.settledAt)} 結清` : '已結平'}
               </div>
             </div>
           </div>
@@ -206,7 +206,7 @@ function StatementScreen({ go, tripId }) {
                         {p.direction === 'paid'
                           ? <>你付給 <b>{p.otherName}</b></>
                           : <><b>{p.otherName}</b> 付給你</>}
-                        {p.note && <div style={{ fontSize:9, color:'#888' }}>{p.note}</div>}
+                        {(p.batch || p.note) && <div style={{ fontSize:9, color:'#888' }}>{[p.batch && '結清', p.note].filter(Boolean).join(' · ')}</div>}
                       </td>
                       <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)'}}>{fmtAmt(p.amount, p.ccy)} {p.ccy}</td>
                       <td style={{...tdStyle, textAlign:'right', fontFamily:'var(--font-num)', fontWeight:600, color: p.direction==='paid' ? '#2d6a3a' : '#a13d2d'}}>
@@ -346,7 +346,7 @@ function buildStatement(trip, memberId) {
     const paid = p.from === memberId;
     if (paid) totalRepaidBase += base; else totalReceivedBase += base;
     payments.push({
-      id: p.id, date: p.date || '', note: p.note || '',
+      id: p.id, date: p.date || '', note: p.note || '', batch: !!p.batch,
       direction: paid ? 'paid' : 'received',
       otherName: memberById[paid ? p.to : p.from]?.name || '?',
       amount: p.amount, ccy: p.ccy, base,
