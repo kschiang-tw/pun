@@ -84,6 +84,8 @@
 
   /* ── Sections & steps ── */
   section { padding-top: 28px; scroll-margin-top: 56px; }   /* clear the sticky top bar */
+  .step { scroll-margin-top: 68px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
   h2 {
     display: flex; align-items: center; gap: 10px;
     font-size: 22px; letter-spacing: -0.3px; margin: 8px 0 4px; font-weight: 700;
@@ -160,9 +162,71 @@
     .step.no-img { grid-template-columns: 1fr; }
   }
 
-  /* Embedded in the app (使用說明): the app provides the header and scrolling */
+  /* ── 快速跳轉: floating button + bottom sheet ── */
+  .jump-btn {
+    position: fixed; z-index: 20; right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    height: 44px; padding: 0 14px 0 12px; border: 0; border-radius: 999px;
+    background: var(--ink); color: var(--bg); font: inherit; font-size: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    box-shadow: 0 8px 24px color-mix(in oklch, var(--ink) 28%, transparent);
+    transition: opacity .2s, transform .2s;
+  }
+  .jump-btn[hidden] { display: inline-flex; opacity: 0; transform: translateY(12px); pointer-events: none; }
+  .jump-btn svg { width: 17px; height: 17px; }
+  .jump-btn .up { opacity: .6; font-size: 11px; }
+
+  .jump-sheet { position: fixed; inset: 0; z-index: 30; }
+  .jump-sheet[hidden] { display: none; }
+  .jump-sheet .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.28); }
+  .jump-sheet .panel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 78%;
+    display: flex; flex-direction: column;
+    background: var(--bg); border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -8px 30px rgba(0,0,0,.12);
+    animation: sheet-up .22s ease-out;
+  }
+  @keyframes sheet-up { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+  @media (min-width: 720px) { .jump-sheet .panel { left: 50%; right: auto; width: 440px; margin-left: -220px; } }
+  .jump-sheet .grip { width: 32px; height: 4px; border-radius: 2px; background: var(--ink-4); margin: 10px auto 4px; }
+  .jump-sheet .head { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 8px; }
+  .jump-sheet .head b { font-size: 16px; }
+  .jump-sheet .close {
+    width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--surface); color: var(--ink-2); font-size: 18px; line-height: 1;
+  }
+  .jump-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 12px 12px; }
+  .jump-list button {
+    width: 100%; border: 0; background: transparent; font: inherit; color: var(--ink);
+    text-align: left; cursor: pointer; border-radius: 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .jump-list button:active { background: var(--bg-2); }
+  .jump-list .sec { padding: 10px 8px; margin-top: 6px; font-size: 15px; font-weight: 700; }
+  .jump-list .sec .dot {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: var(--ink); color: var(--bg); font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .jump-list .sec.faq .dot { background: var(--bg-2); color: var(--ink-2); }
+  .jump-list .stp { padding: 8px 8px 8px 44px; font-size: 14px; color: var(--ink-2); }
+  .jump-list .lbl { flex: 1; min-width: 0; }
+  .jump-list .here {
+    flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--sage-deep);
+    display: none; align-items: center; gap: 4px;
+  }
+  .jump-list .here::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--sage-deep); }
+  .jump-list .cur { background: var(--sage-soft); color: var(--ink); }
+  .jump-list .cur .here { display: inline-flex; }
+  .jump-list .top { margin-top: 8px; padding: 12px 8px; font-size: 14px; color: var(--ink-3); border-top: 0.5px solid var(--hairline); border-radius: 0; }
+
+  /* Embedded in the app (使用說明): the app shows its own header above this
+     iframe, and the iframe scrolls by itself (so the jump button stays put) */
   .embed .top, .embed .open-cta { display: none; }
   .embed .hero { padding-top: 12px; }
+  .embed section { scroll-margin-top: 8px; }
+  .embed .step { scroll-margin-top: 12px; }
 </style>
 <script>
   // ?embed=1 → shown inside the app's 使用說明 screen (iframe). Mark it before
@@ -199,7 +263,7 @@
   </div>
 
   <!-- ─────────────────────────── 開始使用 -->
-  <section id="start">
+  <section id="start" data-short="開始使用">
     <h2><span class="n">0</span>開始使用</h2>
     <p class="sec-lead">pun 是網頁 App，不用到 App Store 下載，加到主畫面就能像 App 一樣用。</p>
 
@@ -235,7 +299,7 @@
   </section>
 
   <!-- ─────────────────────────── ① 出發前 -->
-  <section id="before">
+  <section id="before" data-short="出發前">
     <h2><span class="n">1</span>出發前</h2>
     <p class="sec-lead">建好旅程、拉旅伴進來、每個人認領自己。</p>
 
@@ -317,7 +381,7 @@
   </section>
 
   <!-- ─────────────────────────── ② 旅途中 -->
-  <section id="during">
+  <section id="during" data-short="旅途中">
     <h2><span class="n">2</span>旅途中</h2>
     <p class="sec-lead">誰付錢誰記，花 10 秒記一筆。</p>
 
@@ -369,7 +433,7 @@
   </section>
 
   <!-- ─────────────────────────── ③ 回國後 -->
-  <section id="after">
+  <section id="after" data-short="回國後">
     <h2><span class="n">3</span>回國後：結清</h2>
     <p class="sec-lead">照著轉帳付款，最後按一下「結清這趟旅程」。</p>
 
@@ -434,7 +498,7 @@
   </section>
 
   <!-- ─────────────────────────── 常見問題 -->
-  <section id="faq">
+  <section id="faq" data-short="常見問題">
     <h2><span class="n">?</span>常見問題</h2>
 
     <details>
@@ -492,31 +556,110 @@
   <em>pun</em> 使用指南<span id="ver"></span>
 </footer>
 
+<!-- 快速跳轉 -->
+<button class="jump-btn" id="jumpBtn" type="button" hidden aria-haspopup="dialog" aria-controls="jumpSheet">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+  <span id="jumpLabel">目錄</span><span class="up" aria-hidden="true">▲</span>
+</button>
+<div class="jump-sheet" id="jumpSheet" role="dialog" aria-modal="true" aria-label="跳到段落" hidden>
+  <div class="scrim" data-close></div>
+  <div class="panel">
+    <div class="grip"></div>
+    <div class="head"><b>跳到…</b><button class="close" type="button" data-close aria-label="關閉">×</button></div>
+    <div class="jump-list" id="jumpList"></div>
+  </div>
+</div>
+
 <script src="version.js"></script>
 <script>
   (function () {
     if (window.APP_VERSION) document.getElementById('ver').textContent = ' · 對應 App v' + window.APP_VERSION;
 
-    // Inside the app: size the iframe to the content so the app window does
-    // the scrolling, and make the 目錄 links scroll the app window.
-    if (!document.documentElement.classList.contains('embed')) return;
-    var frame = null;
-    try { frame = window.frameElement; } catch (e) {}
-    if (!frame) return;
-    var fit = function () { frame.style.height = document.body.offsetHeight + 'px'; };
-    fit();
-    window.addEventListener('load', fit);
-    if (window.ResizeObserver) new ResizeObserver(fit).observe(document.body);
-    document.addEventListener('toggle', fit, true);   // FAQ <details> open/close
-    document.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('a[href^="#"]');
-      if (!a) return;
-      var el = document.getElementById(a.getAttribute('href').slice(1));
-      if (!el) return;
-      e.preventDefault();
-      var top = frame.getBoundingClientRect().top + parent.scrollY + el.getBoundingClientRect().top - 12;
-      parent.scrollTo({ top: top, behavior: 'smooth' });
+    // ── 快速跳轉 ──────────────────────────────────────────────────────────
+    // The list is built from the page itself (sections + each step's title),
+    // so new steps show up here automatically.
+    var btn = document.getElementById('jumpBtn');
+    var label = document.getElementById('jumpLabel');
+    var sheet = document.getElementById('jumpSheet');
+    var list = document.getElementById('jumpList');
+    var toc = document.querySelector('.toc');
+
+    var sections = [].map.call(document.querySelectorAll('main section[id]'), function (sec) {
+      var h2 = sec.querySelector('h2');
+      var num = h2.querySelector('.n') ? h2.querySelector('.n').textContent : '';
+      var title = h2.textContent.replace(num, '').trim();
+      var steps = [].map.call(sec.querySelectorAll('.step'), function (st, i) {
+        if (!st.id) st.id = sec.id + '-' + (i + 1);
+        var h3 = st.querySelector('h3');
+        return { el: st, title: h3 ? h3.textContent.trim() : '' };
+      }).filter(function (st) { return st.title; });
+      return { el: sec, num: num, title: title, short: sec.getAttribute('data-short') || title, steps: steps };
     });
+
+    var rowFor = new Map();
+    var addRow = function (cls, html, target) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = cls; b.innerHTML = html;
+      b.addEventListener('click', function () { go(target); });
+      list.appendChild(b);
+      return b;
+    };
+    var here = '<span class="here">你在這裡</span>';
+    sections.forEach(function (sec) {
+      rowFor.set(sec.el, addRow('sec' + (sec.el.id === 'faq' ? ' faq' : ''),
+        '<span class="dot">' + sec.num + '</span><span class="lbl">' + sec.title + '</span>' + here, sec.el));
+      if (sec.el.id === 'faq') return;   // FAQ questions stay in the page
+      sec.steps.forEach(function (st) {
+        rowFor.set(st.el, addRow('stp', '<span class="lbl">' + st.title + '</span>' + here, st.el));
+      });
+    });
+    addRow('top', '↑ 回到最上面', null);
+
+    // Where am I? The last section/step whose top passed 30% of the screen.
+    var current = null;
+    var update = function () {
+      var y = window.innerHeight * 0.3, sec = null, step = null;
+      sections.forEach(function (s) { if (s.el.getBoundingClientRect().top <= y) sec = s; });
+      if (sec) sec.steps.forEach(function (st) { if (st.el.getBoundingClientRect().top <= y) step = st; });
+      label.textContent = sec ? sec.short : '目錄';
+      var cur = step ? step.el : sec ? sec.el : null;
+      if (cur !== current) {
+        if (current && rowFor.get(current)) rowFor.get(current).classList.remove('cur');
+        if (cur && rowFor.get(cur)) rowFor.get(cur).classList.add('cur');
+        current = cur;
+      }
+      // Only show the button once the 目錄 card at the top has scrolled away
+      btn.hidden = !sheet.hidden || toc.getBoundingClientRect().bottom > 0;
+    };
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () { ticking = false; update(); });
+    }, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+
+    var open = function () {
+      sheet.hidden = false; btn.hidden = true;
+      document.documentElement.style.overflow = 'hidden';
+      var row = current && rowFor.get(current);
+      if (row) row.scrollIntoView({ block: 'center' });
+      else list.scrollTop = 0;
+    };
+    var close = function () {
+      sheet.hidden = true;
+      document.documentElement.style.overflow = '';
+      update();
+    };
+    var go = function (target) {
+      close();
+      if (target) target.scrollIntoView({ block: 'start' });
+      else window.scrollTo({ top: 0 });
+    };
+    btn.addEventListener('click', open);
+    sheet.addEventListener('click', function (e) { if (e.target.hasAttribute('data-close')) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sheet.hidden) close(); });
   })();
 </script>
 </body>

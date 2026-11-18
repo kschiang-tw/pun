@@ -612,8 +612,9 @@ window.COVERS = COVERS;
 
 // ─── 使用說明 ────────────────────────────────────────────────
 // The guide lives in guide.html (also shared as a standalone link), so the
-// in-app screen embeds it instead of keeping a second copy. In embed mode the
-// page sizes this iframe to its content, so the app window does the scrolling.
+// in-app screen embeds it instead of keeping a second copy. The header stays
+// put and the iframe scrolls on its own, so the guide's floating 快速跳轉
+// button sits at the bottom of the screen like in the standalone page.
 function GuideScreen({ go }) {
   const url = new URL('guide.html', location.href).href;
   // Offline on a device that never cached the guide → the iframe gets a browser
@@ -634,8 +635,13 @@ function GuideScreen({ go }) {
     catch { prompt('使用指南連結', url); }
   };
   return (
-    <div style={{ paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))' }}>
-      <div style={{ padding: '54px 16px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 10, background: 'var(--bg)',
+      display: 'flex', flexDirection: 'column',
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',   // keep the guide clear of the home indicator
+    }}>
+      <div style={{ flexShrink: 0, borderBottom: '0.5px solid var(--hairline)', padding: '54px 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <CircleIconBtn icon="back" onClick={() => go('home')}/>
         <div style={{ fontSize: 15, fontWeight: 600 }}>使用說明</div>
         <button onClick={share} style={{
@@ -664,7 +670,7 @@ function GuideScreen({ go }) {
         </div>
       )}
       <iframe key={attempt} src="guide.html?embed=1" title="pun 使用指南" onLoad={onLoad}
-        style={{ display: failed ? 'none' : 'block', width: '100%', height: '100vh', border: 0, background: 'transparent' }}/>
+        style={{ display: failed ? 'none' : 'block', flex: 1, minHeight: 0, width: '100%', border: 0, background: 'transparent' }}/>
     </div>
   );
 }
