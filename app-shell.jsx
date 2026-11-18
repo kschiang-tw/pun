@@ -616,6 +616,15 @@ window.COVERS = COVERS;
 // page sizes this iframe to its content, so the app window does the scrolling.
 function GuideScreen({ go }) {
   const url = new URL('guide.html', location.href).href;
+  // Offline on a device that never cached the guide → the iframe gets a browser
+  // error page (unreadable: different origin). Show a friendly message instead.
+  const [failed, setFailed] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
+  const onLoad = (e) => {
+    let ok = false;
+    try { ok = !!e.target.contentDocument?.getElementById('ver'); } catch {}
+    setFailed(!ok);
+  };
   const share = async () => {
     if (navigator.share) {
       try { await navigator.share({ title: 'pun 使用指南', text: '3 分鐘學會用 pun 旅行分帳', url }); } catch {}
@@ -638,8 +647,24 @@ function GuideScreen({ go }) {
           <Icon.share width={14} height={14}/> 分享
         </button>
       </div>
-      <iframe src="guide.html?embed=1" title="pun 使用指南"
-        style={{ display: 'block', width: '100%', height: '100vh', border: 0, background: 'transparent' }}/>
+      {failed && (
+        <div style={{ padding: '60px 32px', textAlign: 'center' }}>
+          <div style={{ color: 'var(--ink-4)', display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <Icon.help width={40} height={40}/>
+          </div>
+          <div className="t-h" style={{ fontSize: 15 }}>目前無法載入使用說明</div>
+          <div className="t-meta" style={{ marginTop: 6, lineHeight: 1.6 }}>
+            請連上網路再試一次。<br/>開啟過一次之後，離線也能看。
+          </div>
+          <button onClick={() => { setFailed(false); setAttempt(n => n + 1); }} style={{
+            marginTop: 16, border: 0, background: 'var(--ink)', color: 'var(--bg)',
+            padding: '9px 20px', borderRadius: 999, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>重新載入</button>
+        </div>
+      )}
+      <iframe key={attempt} src="guide.html?embed=1" title="pun 使用指南" onLoad={onLoad}
+        style={{ display: failed ? 'none' : 'block', width: '100%', height: '100vh', border: 0, background: 'transparent' }}/>
     </div>
   );
 }

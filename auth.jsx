@@ -209,6 +209,12 @@ function LoginScreen() {
               </button>
             </form>
 
+            {isPWA && (
+              <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--ink-3)', textAlign: 'center', lineHeight: 1.6 }}>
+                主畫面上的 pun 建議用 Google 登入：<br/>email 登入連結會在 Safari 打開，登入狀態帶不回這裡
+              </div>
+            )}
+
             {phase === 'error' && (
               <div style={{ marginTop: 12, color: 'var(--neg)', fontSize: 12, textAlign: 'center' }}>
                 {err}

@@ -32,8 +32,13 @@ function InviteSheet({ tripId, onClose }) {
 
   function shareLink() {
     const url = `${location.origin}${location.pathname}?invite=${code}`;
-    if (navigator.share) navigator.share({ title: '加入我的旅程', url });
-    else { navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    // Links can't open the home-screen web app, and LINE's built-in browser
+    // blocks Google sign-in — so the message always carries the code too.
+    const text = `一起用 pun 記旅費！邀請碼：${code}\n`
+      + `・已把 pun 加到主畫面：打開 pun → 首頁右上角「加入旅程」→ 輸入邀請碼\n`
+      + `・還沒安裝：點下面的連結（在 LINE 裡請先選「用瀏覽器開啟」）`;
+    if (navigator.share) navigator.share({ title: '加入我的旅程', text, url }).catch(() => {});
+    else { navigator.clipboard?.writeText(`${text}\n${url}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }
   }
 
   return (
@@ -77,7 +82,7 @@ function InviteSheet({ tripId, onClose }) {
               }}>分享連結…</button>
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
-              旅伴在首頁點「加入旅程」輸入此碼，或直接點分享連結
+              已把 pun 加到主畫面的旅伴：在首頁點「加入旅程」輸入此碼（連結會用瀏覽器打開）
             </div>
           </>
         )}

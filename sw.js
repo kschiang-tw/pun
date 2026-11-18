@@ -1,5 +1,5 @@
 // sw.js — Service Worker for pun PWA
-const CACHE = 'pun-v28';
+const CACHE = 'pun-v29';
 
 // CDN scripts pinned to exact versions — pre-cache on install
 const CDN = [
@@ -9,10 +9,32 @@ const CDN = [
   'https://accounts.google.com/gsi/client',
 ];
 
-// ── Install: pre-cache CDN scripts so they survive offline ──
+// The user guide (guide.html + guide/*.jpg) lives in its own cache that is NOT
+// wiped on version bumps: the installed web app downloads it once per device,
+// so 使用說明 works offline from day one, and every online view refreshes it.
+const GUIDE_CACHE = 'pun-guide';
+const isGuidePath = path => /\/guide(\.html$|\/)/.test(path);
+
+function precacheGuide() {
+  return caches.open(GUIDE_CACHE).then(cache =>
+    cache.match('./guide.html').then(hit => {
+      if (hit) return;   // already on this device
+      return fetch('./guide.html').then(res => {
+        if (!res.ok) return;
+        return res.clone().text().then(html => {
+          // Screenshot list comes from the page itself, so it never goes stale
+          const imgs = [...html.matchAll(/src="(guide\/[^"]+)"/g)].map(m => './' + m[1]);
+          return Promise.allSettled([cache.put('./guide.html', res), ...imgs.map(u => cache.add(u))]);
+        });
+      });
+    })
+  ).catch(() => {});   // best effort — offline install is fine
+}
+
+// ── Install: pre-cache CDN scripts (and the guide, once) so they survive offline ──
 self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(
+  event.waitUntil(Promise.all([
     caches.open(CACHE).then(cache =>
       Promise.allSettled(
         CDN.map(url =>
@@ -21,15 +43,16 @@ self.addEventListener('install', event => {
             .catch(() => {}) // OK to fail on first install without network
         )
       )
-    )
-  );
+    ),
+    precacheGuide(),
+  ]));
 });
 
 // ── Activate: remove old caches ──
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== GUIDE_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -65,15 +88,20 @@ self.addEventListener('fetch', event => {
   // up immediately and users never get a mismatched mix of cached JS versions.
   // Falls back to cache when offline.
   if (url.origin === self.location.origin) {
+    // Guide files go to the long-lived guide cache, keyed without the query
+    // (the app embeds guide.html?embed=1; shared links use plain guide.html).
+    const guide = isGuidePath(url.pathname);
     event.respondWith(
       fetch(request)
         .then(response => {
           if (response.ok) {
-            caches.open(CACHE).then(c => c.put(request, response.clone()));
+            const copy = response.clone();
+            caches.open(guide ? GUIDE_CACHE : CACHE)
+              .then(c => c.put(guide ? url.origin + url.pathname : request, copy));
           }
           return response;
         })
-        .catch(() => caches.match(request).then(cached =>
+        .catch(() => caches.match(request, { ignoreSearch: guide }).then(cached =>
           cached || (
             request.destination === 'document'
               ? caches.match('./index.html')
