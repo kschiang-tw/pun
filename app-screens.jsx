@@ -442,15 +442,16 @@ function SettleScreen({ go, tripId }) {
   // 結清這趟旅程: everyone has paid → record remaining transfers + flag the trip
   const settleTrip = () => {
     const msg = transfers.length
-      ? `確認大家都已經付款了嗎？\n\n會把 ${transfers.length} 筆轉帳記為已付款，並將「${trip.title}」標記為已結清。\n之後若新增或修改支出，會自動取消結清。`
-      : `將「${trip.title}」標記為已結清？\n\n之後若新增或修改支出，會自動取消結清。`;
+      ? `確認大家都已經付款了嗎？\n\n會把 ${transfers.length} 筆轉帳記為已付款，並將「${trip.title}」標記為已結清，匯率也會固定在目前的匯率。\n之後若新增或修改支出，會自動取消結清。`
+      : `將「${trip.title}」標記為已結清？\n\n匯率會固定在目前的匯率。之後若新增或修改支出，會自動取消結清。`;
     if (!confirm(msg)) return;
     dispatch({ type: 'SETTLE_TRIP', tripId, at: Date.now(), date: localToday(), by: meMember?.name || null });
   };
   const unsettleTrip = () => {
+    const liveBack = trip.rateModeBeforeSettle === 'live' ? '\n匯率會恢復為即時匯率。' : '';
     const msg = batchCount
-      ? `取消結清？\n\n結清時記錄的 ${batchCount} 筆付款會一併刪除，大家的餘額會回到結清前。`
-      : '取消結清？';
+      ? `取消結清？\n\n結清時記錄的 ${batchCount} 筆付款會一併刪除，大家的餘額會回到結清前。${liveBack}`
+      : `取消結清？${liveBack}`;
     if (!confirm(msg)) return;
     dispatch({ type: 'UNSETTLE_TRIP', tripId });
   };
@@ -495,6 +496,9 @@ function SettleScreen({ go, tripId }) {
             </div>
             <div className="t-meta" style={{ marginTop: 10, fontSize: 12 }}>
               大家互不相欠。之後若新增或修改支出，會自動取消結清。
+            </div>
+            <div className="t-meta" style={{ marginTop: 6, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Icon.lock width={12} height={12}/> 匯率已鎖定為結清時的匯率
             </div>
             <button onClick={unsettleTrip} style={{
               marginTop: 16, border: '0.5px solid var(--hairline-strong)', background: 'transparent',

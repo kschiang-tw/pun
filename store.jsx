@@ -273,10 +273,10 @@ function makeDemoTrip(ownerId) {
 function reopen(t) {
   return t.settledAt ? { ...t, settledAt: null, settledBy: null } : t;
 }
-// Rate changes only reopen it when they actually leave someone owing money.
-function reopenIfUnbalanced(t) {
-  return t.settledAt && ENGINE.simplify(t).length ? reopen(t) : t;
-}
+// A settled trip's rates are locked (結清後不再動匯率): every rate action is a
+// no-op until 取消結清. This also drops a live-rate fetch that was already in
+// flight when the trip got settled.
+function ratesLocked(t) { return ENGINE.isTripSettled(t); }
 
 // ── Reducer ───────────────────────────────────────────────────────────────────
 function reducer(state, action) {
@@ -392,16 +392,16 @@ function reducer(state, action) {
     }
 
     case 'SET_RATE': {
-      const t = state.trips[a.tripId]; if (!t) return state;
+      const t = state.trips[a.tripId]; if (!t || ratesLocked(t)) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: reopenIfUnbalanced({ ...t, rates: { ...t.rates, [a.ccy]: a.rate },
+        [a.tripId]: reopen({ ...t, rates: { ...t.rates, [a.ccy]: a.rate },
           ratesUpdatedAt: Date.now() }) } };
     }
 
     case 'SET_RATES_BULK': {
-      const t = state.trips[a.tripId]; if (!t) return state;
+      const t = state.trips[a.tripId]; if (!t || ratesLocked(t)) return state;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: reopenIfUnbalanced({ ...t, rates: { ...t.rates, ...a.rates },
+        [a.tripId]: reopen({ ...t, rates: { ...t.rates, ...a.rates },
           ratesUpdatedAt: Date.now(),
           rateMode: a.rateMode ?? t.rateMode,
           liveRatesFetchedAt: a.rateMode === 'live' ? Date.now() : t.liveRatesFetchedAt,
@@ -409,13 +409,13 @@ function reducer(state, action) {
     }
 
     case 'SET_RATE_MODE': {
-      const t = state.trips[a.tripId]; if (!t) return state;
+      const t = state.trips[a.tripId]; if (!t || ratesLocked(t)) return state;
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, rateMode: a.mode } } };
     }
 
     case 'SET_BASE_CCY': {
-      const t = state.trips[a.tripId]; if (!t) return state;
+      const t = state.trips[a.tripId]; if (!t || ratesLocked(t)) return state;
       if (a.ccy === t.baseCurrency || !t.currencies.includes(a.ccy)) return state;
       const pivot = t.rates[a.ccy] || 1;
       const rates = {};
@@ -424,7 +424,7 @@ function reducer(state, action) {
       }
       rates[a.ccy] = 1;
       return { ...state, trips: { ...state.trips,
-        [a.tripId]: reopenIfUnbalanced({ ...t, baseCurrency: a.ccy, rates,
+        [a.tripId]: reopen({ ...t, baseCurrency: a.ccy, rates,
           ratesUpdatedAt: Date.now(),
           // Force a refetch in live mode: division keeps ratios but loses source precision.
           liveRatesFetchedAt: null }) } };
@@ -495,7 +495,10 @@ function reducer(state, action) {
     }
 
     // 結清這趟旅程: record every remaining transfer as paid (tagged with this
-    // settle's batch id) and flag the whole trip as settled.
+    // settle's batch id) and flag the whole trip as settled. Rates freeze at
+    // their current values: live mode switches to manual so nothing refreshes
+    // them later — not even after the trip is reopened by a new expense, since
+    // the payments recorded here were computed at these rates.
     case 'SETTLE_TRIP': {
       const t = state.trips[a.tripId]; if (!t) return state;
       const at = a.at || Date.now();
@@ -505,17 +508,20 @@ function reducer(state, action) {
       }));
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t, settlements: [...(t.settlements || []), ...adds],
-          settledAt: at, settledBy: a.by || null } } };
+          settledAt: at, settledBy: a.by || null,
+          rateMode: 'manual', rateModeBeforeSettle: t.rateMode || 'manual' } } };
     }
 
-    // 取消結清: undo the settle — drop the payments it recorded, clear the flag.
+    // 取消結清: undo the settle — drop the payments it recorded, clear the flag,
+    // and give back the rate mode it had before (e.g. live).
     case 'UNSETTLE_TRIP': {
       const t = state.trips[a.tripId]; if (!t) return state;
       const batch = t.settledAt;
       return { ...state, trips: { ...state.trips,
         [a.tripId]: { ...t,
           settlements: (t.settlements || []).filter(p => !batch || p.batch !== batch),
-          settledAt: null, settledBy: null } } };
+          settledAt: null, settledBy: null,
+          rateMode: t.rateModeBeforeSettle || t.rateMode || 'manual', rateModeBeforeSettle: null } } };
     }
 
     case 'RESET':

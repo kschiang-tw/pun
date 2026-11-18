@@ -235,6 +235,11 @@ function RatesScreen({ go, tripId }) {
   }, [rateMode, trip.baseCurrency]);
 
   const setMode = (mode) => { setFetchErr(''); dispatch({ type:'SET_RATE_MODE', tripId, mode }); };
+  // 結清後不再動匯率: everything that changes a rate is disabled while settled
+  // (the reducer ignores those actions too). Adding/removing a currency stays
+  // available — it changes no amounts, and the expense form relies on it.
+  const locked = ENGINE.isTripSettled(trip);
+  const settledBefore = !locked && (trip.settlements || []).some(p => p.batch);
   const updatedMin = Math.max(0, Math.round((Date.now() - (trip.ratesUpdatedAt || Date.now())) / 60000));
 
   return (
@@ -248,13 +253,37 @@ function RatesScreen({ go, tripId }) {
       <div style={{ padding:'8px 20px 0' }}>
         <div className="t-display" style={{ fontSize:28 }}>1 {trip.baseCurrency} 換算</div>
         <div className="t-meta" style={{ marginTop:4 }}>
-          {rateMode === 'live'
+          {locked ? `已鎖定 · 結清時的匯率（${ENGINE.localDate(trip.settledAt)}）`
+            : rateMode === 'live'
             ? (fetching ? '正在取得即時匯率…' : trip.liveRatesFetchedAt ? `即時匯率 · ${updatedMin} 分鐘前更新` : '即時匯率（尚未取得）')
             : `手動匯率 · ${updatedMin} 分鐘前更新`}
         </div>
       </div>
 
-      <div style={{ padding:'16px 16px 0' }}>
+      {locked && (
+        <div style={{ padding:'14px 16px 0' }}>
+          <div style={{ padding:'12px 14px', borderRadius:12, background:'var(--sage-soft)', color:'var(--sage-deep)', display:'flex', gap:10, alignItems:'flex-start' }}>
+            <Icon.lock width={18} height={18} style={{ flexShrink:0, marginTop:1 }}/>
+            <div style={{ flex:1, fontSize:12.5, lineHeight:1.55 }}>
+              <div style={{ fontWeight:600 }}>旅程已結清，匯率已鎖定</div>
+              <div style={{ marginTop:2 }}>維持結清時的匯率，不會再自動更新，避免已結清的帳又出現差額。若真的要修改，請先取消結清。</div>
+              <button onClick={() => go('settle', { tripId })} style={{
+                marginTop:8, border:0, background:'var(--bg)', color:'var(--ink)', padding:'5px 12px',
+                borderRadius:999, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit',
+              }}>前往結算 ›</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {settledBefore && (
+        <div style={{ padding:'14px 16px 0' }}>
+          <div className="t-meta" style={{ padding:'10px 12px', borderRadius:10, background:'var(--surface)', fontSize:11.5, lineHeight:1.55 }}>
+            這趟旅程結清過，匯率已固定為結清時的值；修改匯率會讓之前已結清的金額跟著變動。
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding:'16px 16px 0', opacity: locked ? 0.5 : 1, pointerEvents: locked ? 'none' : 'auto' }} aria-disabled={locked}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:3, background:'var(--surface)', borderRadius:12, border:'0.5px solid var(--hairline)' }}>
           {[
             { k:'manual', l:'手動匯率', sub:'自行輸入' },
@@ -304,8 +333,9 @@ function RatesScreen({ go, tripId }) {
           {trip.currencies.map(c => {
             const on = c === trip.baseCurrency;
             return (
-              <button key={c} onClick={() => { if (!on) dispatch({ type:'SET_BASE_CCY', tripId, ccy: c }); }}
+              <button key={c} disabled={locked && !on} onClick={() => { if (!on && !locked) dispatch({ type:'SET_BASE_CCY', tripId, ccy: c }); }}
                 style={{
+                  opacity: locked && !on ? 0.45 : 1,
                   border: on ? 0 : '0.5px solid var(--hairline-strong)',
                   borderRadius:999, padding:'7px 14px', cursor: on ? 'default' : 'pointer',
                   background: on ? 'var(--ink)' : 'var(--surface)',
@@ -340,13 +370,13 @@ function RatesScreen({ go, tripId }) {
                 </div>
                 {!isBase ? (
                   <input type="number" step="any" value={trip.rates[c] || 1}
-                    disabled={rateMode === 'live'}
+                    disabled={rateMode === 'live' || locked}
                     onChange={e => dispatch({ type:'SET_RATE', tripId, ccy: c, rate: +e.target.value })}
                     style={{
                       width:96, border:'0.5px solid var(--hairline-strong)', borderRadius:10, padding:'5px 10px', textAlign:'right',
-                      background: rateMode==='live' ? 'var(--surface)' : 'var(--bg-2)',
-                      color: rateMode==='live' ? 'var(--ink-3)' : 'var(--ink)',
-                      outline:'none', cursor: rateMode==='live' ? 'not-allowed' : 'text',
+                      background: (rateMode==='live' || locked) ? 'var(--surface)' : 'var(--bg-2)',
+                      color: (rateMode==='live' || locked) ? 'var(--ink-3)' : 'var(--ink)',
+                      outline:'none', cursor: (rateMode==='live' || locked) ? 'not-allowed' : 'text',
                       fontFamily:'var(--font-num)', fontVariantNumeric:'tabular-nums', fontSize:16, fontWeight:500,
                     }}/>
                 ) : (
