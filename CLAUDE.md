@@ -2,12 +2,25 @@
 
 ## 每次修改後的固定流程
 
-1. 更新 `version.js` 版號（規則如下）
-2. 更新 `CHANGELOG.md`，在最上方加入新版本的條目
-3. `git add` 所有修改的檔案（包含 `version.js` 和 `CHANGELOG.md`）
-4. `git commit` + `git push` 到 https://github.com/kschiang-tw/pun
+1. 更新 `version.js` 版號（規則如下），並同步把 `sw.js` 的 `CACHE` 名稱 +1（例如 `pun-v29` → `pun-v30`）
+2. **檢查使用指南（操作手冊）是否需要更新**（見下方「使用指南檢查」）
+3. 更新 `CHANGELOG.md`（開發日誌），在最上方加入新版本的條目，條目最後一行註明使用指南檢查結果：
+   `- 使用指南：已更新（改了哪些段落／截圖）` 或 `- 使用指南：不需更新（原因）`
+4. `git add` 所有修改的檔案（包含 `version.js`、`CHANGELOG.md`，以及有改到的 `guide.html`、`guide/`）
+5. `git commit` + `git push` 到 https://github.com/kschiang-tw/pun
 
 **不論是新功能、bug fix、還是小調整，都要執行這個流程。**
+
+## 使用指南檢查（每次更新都要做）
+
+`guide.html` 是給旅伴看的操作手冊，App 內「使用說明」也是同一份。每次修改後逐項確認：
+
+- **按鈕名稱、畫面文字、操作步驟**有沒有改？→ 更新 `guide.html` 對應段落（含常見問題）
+- **畫面外觀**有沒有改到指南截圖裡的畫面？→ 重新產生截圖：`cd tools/guide-screenshots && npm install && npm run shoot`
+  - 若按鈕文字變了，要先改 `shoot.js` 裡對應的 selector
+- **新功能**旅伴會用到嗎？→ 在 `guide.html` 對應的時間軸段落（出發前／旅途中／回國後）加一步或加一題常見問題
+- **網頁 App（加到主畫面）**的情境也要顧到：主要使用者是把 pun 加到主畫面使用，說明要以主畫面 App 為準（登入、邀請碼、離線、更新方式）
+- 純內部修改（重構、效能、資料修正）不影響操作時，註明「不需更新」即可
 
 ## 版號規則（語意化版本）
 
@@ -35,8 +48,6 @@
 | `tools/guide-screenshots/` | 用示範資料重新產生指南截圖：`npm install && npm run shoot` |
 
 ## 技術筆記
-
-- 介面有改動、影響到使用指南提到的畫面時，記得更新 `guide.html` 文字並重新產生截圖
 
 - iOS PWA standalone 模式用 GSI `renderButton`（不能用 popup）
 - 一般瀏覽器用 `signInWithPopup`

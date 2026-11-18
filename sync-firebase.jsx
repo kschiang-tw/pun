@@ -36,7 +36,7 @@ function InviteSheet({ tripId, onClose }) {
     // blocks Google sign-in — so the message always carries the code too.
     const text = `一起用 pun 記旅費！邀請碼：${code}\n`
       + `・已把 pun 加到主畫面：打開 pun → 首頁右上角「加入旅程」→ 輸入邀請碼\n`
-      + `・還沒安裝：點下面的連結（在 LINE 裡請先選「用瀏覽器開啟」）`;
+      + `・還沒安裝：點下面的連結（在 LINE 裡請先改用 Safari／Chrome 開啟）`;
     if (navigator.share) navigator.share({ title: '加入我的旅程', text, url }).catch(() => {});
     else { navigator.clipboard?.writeText(`${text}\n${url}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }
   }
