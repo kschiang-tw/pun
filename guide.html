@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#f5f0ea"/>
+<meta name="description" content="3 分鐘學會用 pun 旅行分帳：記支出、看誰欠誰、回國一鍵結清。"/>
+<link rel="icon" type="image/svg+xml" href="icon.svg"/>
+<title>pun 使用指南</title>
+<link rel="stylesheet" href="tokens.css"/>
+<style>
+  /* Uses the app's own tokens (tokens.css) so the guide looks like pun. */
+  /* tokens.css pins html/body to 100% (app shell); the guide needs its natural
+     height — the in-app iframe is sized from body.offsetHeight. */
+  html, body { margin: 0; padding: 0; height: auto; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--font-sans); font-size: 16px; line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  * { box-sizing: border-box; }
+  img { max-width: 100%; }
+  a { color: inherit; }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  /* ── Top bar (hidden inside the app) ── */
+  .top {
+    position: sticky; top: 0; z-index: 5;
+    background: color-mix(in oklch, var(--bg) 88%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 0.5px solid var(--hairline);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .brand { font-size: 15px; font-weight: 600; }
+  .brand em { font-weight: 800; letter-spacing: -0.5px; margin-right: 2px; }
+  .open {
+    text-decoration: none; background: var(--ink); color: var(--bg);
+    font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px;
+  }
+
+  /* ── Hero ── */
+  .hero { padding: 36px 0 8px; }
+  .hero h1 { font-size: 30px; line-height: 1.25; letter-spacing: -0.5px; margin: 0 0 12px; font-weight: 700; }
+  .hero p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
+  .toc a {
+    text-decoration: none; font-size: 14px; font-weight: 500;
+    background: var(--surface); border: 0.5px solid var(--hairline);
+    padding: 7px 14px; border-radius: 999px;
+  }
+  .legend { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+
+  /* ── Sections & steps ── */
+  section { padding-top: 28px; scroll-margin-top: 56px; }   /* clear the sticky top bar */
+  h2 {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 22px; letter-spacing: -0.3px; margin: 8px 0 4px; font-weight: 700;
+  }
+  h2 .n {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    background: var(--ink); color: var(--bg); font-size: 15px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sec-lead { color: var(--ink-3); font-size: 14px; margin: 0 0 6px 40px; }
+
+  .step {
+    background: var(--surface); border: 0.5px solid var(--hairline); border-radius: 22px;
+    padding: 20px 18px; margin-top: 14px;
+    display: grid; grid-template-columns: 1fr; gap: 16px;
+  }
+  .step h3 { font-size: 18px; margin: 6px 0 8px; letter-spacing: -0.2px; }
+  .step ol, .step ul { margin: 0; padding-left: 22px; }
+  .step li { margin: 3px 0; }
+  .step p { margin: 8px 0 0; }
+  .who {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+    background: var(--sage-soft); color: var(--sage-deep);
+  }
+  .who.host { background: var(--clay-soft); color: var(--clay-deep); }
+  .who.opt  { background: var(--bg-2); color: var(--ink-3); }
+
+  /* Button names as they appear in the app */
+  .b {
+    display: inline-block; font-size: 0.86em; font-weight: 600; line-height: 1.5;
+    padding: 0 8px; border-radius: 7px; white-space: nowrap;
+    background: var(--bg-2); border: 0.5px solid var(--hairline-strong);
+  }
+  .tip {
+    margin-top: 12px; padding: 10px 12px; border-radius: 12px;
+    background: var(--bg-2); font-size: 14px; color: var(--ink-2);
+  }
+  .tip.key { background: var(--sage-soft); color: var(--sage-deep); }
+  .tip b { color: var(--ink); }
+  .tip.key b { color: inherit; }
+
+  figure { margin: 0; text-align: center; }
+  figure img {
+    width: 100%; max-width: 270px; height: auto; display: block; margin: 0 auto;
+    border-radius: 26px; border: 1px solid var(--hairline-strong);
+    box-shadow: 0 10px 30px color-mix(in oklch, var(--ink) 12%, transparent);
+    background: var(--bg);
+  }
+  figcaption { font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+
+  table.modes { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  table.modes th, table.modes td { text-align: left; padding: 7px 6px; border-bottom: 0.5px solid var(--hairline); vertical-align: top; }
+  table.modes th { white-space: nowrap; width: 3.5em; }
+
+  /* ── FAQ ── */
+  details {
+    background: var(--surface); border: 0.5px solid var(--hairline); border-radius: 16px;
+    margin-top: 10px; padding: 0 16px;
+  }
+  summary {
+    cursor: pointer; list-style: none; padding: 14px 0; font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; gap: 12px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '＋'; color: var(--ink-3); font-weight: 400; }
+  details[open] summary::after { content: '－'; }
+  details > div { padding: 0 0 14px; color: var(--ink-2); font-size: 15px; }
+
+  footer { padding: 36px 0 calc(40px + env(safe-area-inset-bottom, 0px)); text-align: center; font-size: 12px; color: var(--ink-4); }
+
+  @media (min-width: 720px) {
+    .hero h1 { font-size: 36px; }
+    .step { grid-template-columns: 1fr 250px; align-items: center; padding: 24px; gap: 28px; }
+    .step.no-img { grid-template-columns: 1fr; }
+  }
+
+  /* Embedded in the app (使用說明): the app provides the header and scrolling */
+  .embed .top, .embed .open-cta { display: none; }
+  .embed .hero { padding-top: 12px; }
+</style>
+<script>
+  // ?embed=1 → shown inside the app's 使用說明 screen (iframe). Mark it before
+  // first paint so the standalone-only top bar never flashes.
+  if (/[?&]embed=1/.test(location.search) && window.parent !== window) {
+    document.documentElement.classList.add('embed');
+  }
+</script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><em>pun</em> 使用指南</div>
+    <a class="open" href="./">打開 pun ›</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <h1>3 分鐘學會<br/>用 pun 旅行分帳</h1>
+    <p>旅途中誰付了什麼都記在 pun，回國後 App 會算出「最少幾筆轉帳」就能把帳算清楚，大家付完按一下就結清。</p>
+    <nav class="toc" aria-label="目錄">
+      <a href="#start">開始使用</a>
+      <a href="#before">① 出發前</a>
+      <a href="#during">② 旅途中</a>
+      <a href="#after">③ 回國後</a>
+      <a href="#faq">常見問題</a>
+    </nav>
+    <div class="legend">
+      <span><span class="who">所有人</span> 每個人都會用到</span>
+      <span><span class="who host">開團的人</span> 建立旅程的人做一次就好</span>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────── 開始使用 -->
+  <section id="start">
+    <h2><span class="n">0</span>開始使用</h2>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>打開 pun 並登入</h3>
+        <ol>
+          <li>用手機瀏覽器打開 pun 的網址（或旅伴傳給你的邀請連結）。</li>
+          <li>按 <span class="b">使用 Google 登入</span>，或輸入 email，到信箱點登入連結。</li>
+        </ol>
+        <div class="tip"><b>加到主畫面，用起來就像 App：</b><br/>
+          iPhone：Safari 下方的分享按鈕 → <span class="b">加入主畫面</span><br/>
+          Android：Chrome 右上角選單 → <span class="b">加到主畫面</span>
+        </div>
+      </div>
+      <figure>
+        <img src="guide/01-login.jpg" width="390" height="844" alt="pun 登入畫面" loading="lazy"/>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── ① 出發前 -->
+  <section id="before">
+    <h2><span class="n">1</span>出發前</h2>
+    <p class="sec-lead">建好旅程、拉旅伴進來、每個人認領自己。</p>
+
+    <div class="step">
+      <div>
+        <span class="who host">開團的人</span>
+        <h3>建立旅程</h3>
+        <ol>
+          <li>首頁右上角按 <span class="b">＋</span>。</li>
+          <li>填旅程名稱、日期，選 <b>主幣</b>（最後結算用的幣別，例如 TWD）。</li>
+          <li>輸入你的名字和旅伴的名字 → <span class="b">建立</span>。</li>
+        </ol>
+        <div class="tip">漏了人沒關係，之後在旅程的 <span class="b">成員</span> 頁還能加。</div>
+      </div>
+      <figure>
+        <img src="guide/03-create.jpg" width="390" height="844" alt="建立新旅程" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who host">開團的人</span>
+        <h3>邀請旅伴</h3>
+        <ol>
+          <li>進入旅程，按右上角 <span class="b">⋯</span> → <span class="b">邀請旅伴</span>。</li>
+          <li>按 <span class="b">分享連結…</span>，傳到 LINE 群組；或把 6 碼 <b>邀請碼</b> 給大家。</li>
+        </ol>
+        <div class="tip">加入的人都可以一起記帳、修改，資料會即時同步。</div>
+      </div>
+      <figure>
+        <img src="guide/04-invite.jpg" width="390" height="844" alt="邀請旅伴：邀請碼與分享連結" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who">旅伴</span>
+        <h3>加入旅程</h3>
+        <ul>
+          <li><b>有連結：</b>直接點開並登入，就會自動加入。</li>
+          <li><b>有邀請碼：</b>首頁右上角的 <span class="b">加入旅程</span> 圖示（人像 ＋）→ 輸入邀請碼。</li>
+        </ul>
+      </div>
+      <figure>
+        <img src="guide/05-join.jpg" width="390" height="844" alt="輸入邀請碼加入旅程" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>認領自己：按「這是我」</h3>
+        <ol>
+          <li>進入旅程 → <span class="b">成員</span>。</li>
+          <li>在自己的名字旁按 <span class="b">這是我</span>。</li>
+        </ol>
+        <div class="tip key"><b>很重要：</b>沒有認領的話，「你的餘額」不會是你自己的帳。每支手機各設定一次。</div>
+      </div>
+      <figure>
+        <img src="guide/06-members.jpg" width="390" height="844" alt="成員頁：按「這是我」" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who host">開團的人</span>
+        <h3>設定外幣與匯率</h3>
+        <ol>
+          <li>旅程頁 → <span class="b">匯率</span> → 在「加入幣別」選要用的外幣（例如 JPY）。</li>
+          <li>選 <span class="b">即時匯率</span> 自動抓網路匯率；或選 <span class="b">手動匯率</span>，輸入你實際換匯的匯率。</li>
+        </ol>
+        <div class="tip">每筆支出用當地幣別記就好，結算時會自動換算成主幣。</div>
+      </div>
+      <figure>
+        <img src="guide/07-rates.jpg" width="390" height="844" alt="匯率設定" loading="lazy"/>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── ② 旅途中 -->
+  <section id="during">
+    <h2><span class="n">2</span>旅途中</h2>
+    <p class="sec-lead">誰付錢誰記，花 10 秒記一筆。</p>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>記一筆支出</h3>
+        <ol>
+          <li>旅程頁右下角按 <span class="b">＋</span>。</li>
+          <li>填名稱、金額、幣別、分類。</li>
+          <li>選 <b>付款人</b>；兩個人以上一起付，按 <span class="b">+多人</span> 分別填金額。</li>
+          <li>選 <b>分帳方式</b> → <span class="b">儲存</span>。</li>
+        </ol>
+        <table class="modes">
+          <tr><th>均分</th><td>參與的人平均分。沒參加的人把勾勾取消就好。</td></tr>
+          <tr><th>金額</th><td>直接指定每個人分多少錢。</td></tr>
+          <tr><th>等份</th><td>依份數分，例如大人 2 份、小孩 1 份。</td></tr>
+          <tr><th>比例</th><td>依百分比分，例如 70% / 30%。</td></tr>
+        </table>
+        <div class="tip">金額欄旁有計算機，可以直接輸入 <b>1200+850</b> 這類算式。</div>
+      </div>
+      <figure>
+        <img src="guide/08-add.jpg" width="390" height="844" alt="新增支出" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>看自己的餘額</h3>
+        <ul>
+          <li>旅程頁上方的 <b>你的餘額</b>：<b style="color:var(--pos)">綠色 ＋</b> 是別人欠你，<b style="color:var(--neg)">紅色 －</b> 是你欠別人。</li>
+          <li>下方列表是所有支出，點一筆可以修改或刪除。</li>
+          <li>首頁的 🔔 會告訴你旅伴新增或修改了什麼。</li>
+        </ul>
+      </div>
+      <figure>
+        <img src="guide/09-trip.jpg" width="390" height="844" alt="旅程頁與你的餘額" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step no-img">
+      <div>
+        <span class="who opt">需要時</span>
+        <h3>借錢給旅伴</h3>
+        <p>旅途中借現金、幫忙墊付不算旅費的東西：旅程頁 <span class="b">結算</span> → 借款紀錄 <span class="b">記錄借款</span>。借款會一起算進最後的結算。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── ③ 回國後 -->
+  <section id="after">
+    <h2><span class="n">3</span>回國後：結清</h2>
+    <p class="sec-lead">照著轉帳付款，最後按一下「結清這趟旅程」。</p>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>看誰要付給誰</h3>
+        <ol>
+          <li>旅程頁按 <span class="b">結算</span>。</li>
+          <li>App 會算出最少筆數的轉帳，例如「小美 應付給 阿傑 NT$1,234」。</li>
+          <li>照著用轉帳、LINE Pay 或現金付款。</li>
+        </ol>
+        <div class="tip">有人想先付一部分？在那筆轉帳下方按 <span class="b">先付一部分？記錄還款</span>，填實際付的金額，剩下的會自動重算。</div>
+      </div>
+      <figure>
+        <img src="guide/10-settle.jpg" width="390" height="844" alt="結算畫面：最少筆數轉帳" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who">任何一人</span>
+        <h3>結清這趟旅程</h3>
+        <ol>
+          <li>確認大家都付完款。</li>
+          <li>在結算畫面按 <span class="b">結清這趟旅程</span> → 確認。</li>
+        </ol>
+        <p>剩下的轉帳會記為已付款，旅程標記為 <b>已結清</b>，並移到首頁下方的「已結清」區塊。</p>
+        <div class="tip key"><b>結清後匯率會鎖定</b>，不會再自動更新，已結清的帳不會因為匯率變動又冒出差額。按錯了可以按 <span class="b">取消結清</span> 復原。</div>
+      </div>
+      <figure>
+        <img src="guide/11-settled.jpg" width="390" height="844" alt="旅程已結清" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who opt">需要時</span>
+        <h3>匯出帳單</h3>
+        <p>旅程頁 <span class="b">匯出</span>：</p>
+        <ul>
+          <li><span class="b">個人帳單 PDF</span>：每個人自己的明細、分擔與付款。</li>
+          <li><span class="b">複製文字</span>：貼到 LINE 群組給大家看。</li>
+          <li><span class="b">CSV</span>：用 Excel／Numbers 打開。</li>
+        </ul>
+      </div>
+      <figure>
+        <img src="guide/12-export.jpg" width="390" height="844" alt="匯出明細" loading="lazy"/>
+      </figure>
+    </div>
+
+    <div class="step">
+      <div>
+        <span class="who">所有人</span>
+        <h3>已結清的旅程</h3>
+        <p>結清後的旅程會收進首頁下方的 <b>已結清</b> 區塊，卡片上標示 <b>✓ 已結清</b>，進行中的旅程留在上面。</p>
+      </div>
+      <figure>
+        <img src="guide/02-home.jpg" width="390" height="844" alt="首頁的已結清區塊" loading="lazy"/>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── 常見問題 -->
+  <section id="faq">
+    <h2><span class="n">?</span>常見問題</h2>
+
+    <details>
+      <summary>結清後才發現漏記一筆，怎麼辦？</summary>
+      <div>直接新增或修改就好。旅程會自動取消結清、重新計算要付多少，補付之後再按一次 <span class="b">結清這趟旅程</span>。</div>
+    </details>
+    <details>
+      <summary>為什麼匯率不能改了？</summary>
+      <div>旅程結清後，匯率會鎖定在結清當下的值，避免匯率變動讓已結清的帳又出現差額。真的要改，先到結算畫面按 <span class="b">取消結清</span>。</div>
+    </details>
+    <details>
+      <summary>外幣支出怎麼換算？</summary>
+      <div>每筆支出用它自己的幣別記，結算時依 <span class="b">匯率</span> 頁的匯率換算成主幣。主幣也可以在匯率頁切換。</div>
+    </details>
+    <details>
+      <summary>「借款」和「還款」有什麼不同？</summary>
+      <div><b>借款</b>是旅途中把錢借給旅伴，對方會欠你更多；<b>還款</b>是結算時付掉欠款，欠的錢會變少。</div>
+    </details>
+    <details>
+      <summary>「這是我」選錯人了？</summary>
+      <div>到 <span class="b">成員</span> 頁，在目前選的名字旁按 <span class="b">更換</span>，再重新按自己的 <span class="b">這是我</span>。</div>
+    </details>
+    <details>
+      <summary>為什麼幾毛錢的零頭不見了？</summary>
+      <div>台幣、日圓這類沒有小數的幣別，小於 0.5 元的零頭會直接算已結清，不用為了幾毛錢再轉一次帳。</div>
+    </details>
+    <details>
+      <summary>沒有網路也能記帳嗎？</summary>
+      <div>可以。離線時照常記，連上網路後會自動同步給旅伴。</div>
+    </details>
+    <details>
+      <summary>旅伴看得到我其他的旅程嗎？</summary>
+      <div>看不到。只有同一趟旅程的成員共用那趟的帳目；「目前旅程」置頂也只有你自己看得到。</div>
+    </details>
+  </section>
+
+  <div class="open-cta" style="text-align:center; padding-top: 32px;">
+    <a class="open" href="./" style="font-size:15px; padding:12px 24px;">打開 pun 開始記帳 ›</a>
+  </div>
+</main>
+
+<footer>
+  <em>pun</em> 使用指南<span id="ver"></span>
+</footer>
+
+<script src="version.js"></script>
+<script>
+  (function () {
+    if (window.APP_VERSION) document.getElementById('ver').textContent = ' · 對應 App v' + window.APP_VERSION;
+
+    // Inside the app: size the iframe to the content so the app window does
+    // the scrolling, and make the 目錄 links scroll the app window.
+    if (!document.documentElement.classList.contains('embed')) return;
+    var frame = null;
+    try { frame = window.frameElement; } catch (e) {}
+    if (!frame) return;
+    var fit = function () { frame.style.height = document.body.offsetHeight + 'px'; };
+    fit();
+    window.addEventListener('load', fit);
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(document.body);
+    document.addEventListener('toggle', fit, true);   // FAQ <details> open/close
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!a) return;
+      var el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      var top = frame.getBoundingClientRect().top + parent.scrollY + el.getBoundingClientRect().top - 12;
+      parent.scrollTo({ top: top, behavior: 'smooth' });
+    });
+  })();
+</script>
+</body>
+</html>

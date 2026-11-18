@@ -45,6 +45,7 @@ const Icon = {
   filter:   (p) => stroke(<path d="M4 6h16M7 12h10M10 18h4"/>, p),
   bell:     (p) => stroke(<><path d="M6 9a6 6 0 0 1 12 0c0 4 1 6 2 7H4c1-1 2-3 2-7z"/><path d="M10 21a2 2 0 0 0 4 0"/></>, p),
   trash:    (p) => stroke(<><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></>, p),
+  help:     (p) => stroke(<><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2.1-2.4 3.7"/><circle cx="12" cy="17" r="0.6"/></>, p),
   lock:     (p) => stroke(<><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>, p),
   pin:      (p) => stroke(<><path d="M9 3h6l-1 5 3 4v2H7v-2l3-4-1-5z"/><path d="M12 14v7"/></>, p),
 };

@@ -30,8 +30,13 @@
 | `app-secondary.jsx` | 新增旅程、編輯旅程等次要畫面 |
 | `auth.jsx` | 登入畫面（email link + Google Sign-In） |
 | `version.js` | App 版本號 |
+| `guide.html` | 使用指南（獨立網頁；App 內「使用說明」以 iframe 嵌入同一份） |
+| `guide/` | 使用指南截圖（由 `tools/guide-screenshots` 產生） |
+| `tools/guide-screenshots/` | 用示範資料重新產生指南截圖：`npm install && npm run shoot` |
 
 ## 技術筆記
+
+- 介面有改動、影響到使用指南提到的畫面時，記得更新 `guide.html` 文字並重新產生截圖
 
 - iOS PWA standalone 模式用 GSI `renderButton`（不能用 popup）
 - 一般瀏覽器用 `signInWithPopup`

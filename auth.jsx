@@ -219,6 +219,11 @@ function LoginScreen() {
               textAlign: 'center', lineHeight: 1.6 }}>
               登入即表示你同意此 app 僅將資料存於<br/>你個人的 Firebase 帳號中
             </div>
+
+            <a href="guide.html" style={{
+              display: 'block', marginTop: 18, textAlign: 'center',
+              fontSize: 13, color: 'var(--ink-2)', textDecoration: 'none', fontWeight: 500,
+            }}>第一次使用？看 3 分鐘操作指南 ›</a>
           </>
         )}
       </div>

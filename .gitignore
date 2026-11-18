@@ -1,2 +1,6 @@
 .DS_Store
 design_handoff_splittrip/
+
+# guide screenshot tool deps
+tools/guide-screenshots/node_modules/
+tools/guide-screenshots/package-lock.json

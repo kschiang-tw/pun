@@ -24,6 +24,8 @@ It perfectly encapsulates the two core pillars of the app:
 - Expense splitting across group members
 - Google Drive backup support
 - Google Sign-In & email link authentication
+- Settle up: record partial payments, then settle the whole trip in one tap (rates lock once settled)
+- User guide (`guide.html`, also in-app under 使用說明) for getting travel companions started
 
 ## Tech Stack
 
@@ -46,6 +48,9 @@ It perfectly encapsulates the two core pillars of the app:
 | `engine.js` | Expense calculation logic |
 | `currencies.js` | Currency list and conversion |
 | `version.js` | App version number |
+| `guide.html` | User guide (standalone page; embedded in-app as 使用說明) |
+| `guide/` | Guide screenshots |
+| `tools/guide-screenshots/` | Regenerates `guide/` screenshots with demo data |
 
 ## Notes
 

@@ -83,6 +83,7 @@ function AppShell() {
     case 'export':    view = <ExportScreen go={go} tripId={route.tripId}/>; break;
     case 'statement': view = <StatementScreen go={go} tripId={route.tripId}/>; break;
     case 'stats':     view = <StatsScreen go={go} tripId={route.tripId}/>; break;
+    case 'guide':     view = <GuideScreen go={go}/>; break;
     default:          view = <HomeScreen go={go}/>;
   }
 
@@ -206,6 +207,13 @@ function HomeScreen({ go }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div className="t-display" style={{ fontSize: 34 }}>旅程</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* User guide */}
+            <button onClick={() => go('guide')} title="使用說明" aria-label="使用說明"
+              style={{ width: 36, height: 36, borderRadius: '50%', border: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', background: 'var(--surface)', color: 'var(--ink-2)' }}>
+              <Icon.help width={18} height={18}/>
+            </button>
             {/* Notifications */}
             <button onClick={() => setShowNotif(true)} title="通知"
               style={{ position: 'relative', width: 36, height: 36, borderRadius: '50%', border: 0,
@@ -307,7 +315,8 @@ function HomeScreen({ go }) {
         </button>
       </div>
 
-      {showAbout && <AboutSheet onClose={() => setShowAbout(false)}/>}
+      {showAbout && <AboutSheet onClose={() => setShowAbout(false)}
+        onGuide={() => { setShowAbout(false); go('guide'); }}/>}
       {showJoin  && <JoinSheet  onClose={() => setShowJoin(false)}/>}
       {showNotif && <NotificationSheet go={go} onClose={() => setShowNotif(false)}/>}
     </div>
@@ -449,7 +458,7 @@ function NotificationSheet({ go, onClose }) {
   );
 }
 
-function AboutSheet({ onClose }) {
+function AboutSheet({ onClose, onGuide }) {
   const { user } = useAuth();
   const { forceBackup } = useTripActions();
   const [updatePhase, setUpdatePhase] = React.useState('idle'); // idle | syncing | done | error
@@ -502,6 +511,22 @@ function AboutSheet({ onClose }) {
           </div>
           <button onClick={onClose} style={{ border: 0, background: 'var(--surface)', color: 'var(--ink-2)', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
+
+        {onGuide && (
+          <button onClick={onGuide} style={{
+            width: '100%', border: '0.5px solid var(--hairline)', background: 'var(--surface)',
+            borderRadius: 14, padding: '12px 14px', marginBottom: 18, cursor: 'pointer',
+            fontFamily: 'inherit', textAlign: 'left', color: 'var(--ink)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <Icon.help width={18} height={18}/>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>使用說明</span>
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>3 分鐘學會記帳、分帳與結清</span>
+            </span>
+            <Icon.chev width={14} height={14} style={{ color: 'var(--ink-4)' }}/>
+          </button>
+        )}
 
         <div style={{ height: '0.5px', background: 'var(--hairline)', marginBottom: 18 }}/>
 
@@ -584,3 +609,38 @@ window.AppShell = AppShell;
 window.HomeScreen = HomeScreen;
 window.fmtDateRange = fmtDateRange;
 window.COVERS = COVERS;
+
+// ─── 使用說明 ────────────────────────────────────────────────
+// The guide lives in guide.html (also shared as a standalone link), so the
+// in-app screen embeds it instead of keeping a second copy. In embed mode the
+// page sizes this iframe to its content, so the app window does the scrolling.
+function GuideScreen({ go }) {
+  const url = new URL('guide.html', location.href).href;
+  const share = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'pun 使用指南', text: '3 分鐘學會用 pun 旅行分帳', url }); } catch {}
+      return;
+    }
+    try { await navigator.clipboard.writeText(url); alert('已複製使用指南連結'); }
+    catch { prompt('使用指南連結', url); }
+  };
+  return (
+    <div style={{ paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))' }}>
+      <div style={{ padding: '54px 16px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <CircleIconBtn icon="back" onClick={() => go('home')}/>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>使用說明</div>
+        <button onClick={share} style={{
+          border: 0, background: 'var(--surface)', color: 'var(--ink-2)',
+          height: 32, padding: '0 12px', borderRadius: 999,
+          fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <Icon.share width={14} height={14}/> 分享
+        </button>
+      </div>
+      <iframe src="guide.html?embed=1" title="pun 使用指南"
+        style={{ display: 'block', width: '100%', height: '100vh', border: 0, background: 'transparent' }}/>
+    </div>
+  );
+}
+window.GuideScreen = GuideScreen;
