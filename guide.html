@@ -43,13 +43,44 @@
   .hero { padding: 36px 0 8px; }
   .hero h1 { font-size: 30px; line-height: 1.25; letter-spacing: -0.5px; margin: 0 0 12px; font-weight: 700; }
   .hero p { margin: 0; color: var(--ink-2); font-size: 15px; }
-  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
-  .toc a {
-    text-decoration: none; font-size: 14px; font-weight: 500;
-    background: var(--surface); border: 0.5px solid var(--hairline);
-    padding: 7px 14px; border-radius: 999px;
+  /* 目錄: one card, rows follow the trip's timeline (0 → 3), FAQ apart at the bottom */
+  .toc {
+    margin: 22px 0 10px; background: var(--surface);
+    border: 0.5px solid var(--hairline); border-radius: 20px; overflow: hidden;
   }
-  .legend { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .toc a {
+    position: relative; display: flex; align-items: center; gap: 14px;
+    padding: 11px 16px; text-decoration: none; color: var(--ink);
+  }
+  .toc a:active { background: var(--bg-2); }
+  .toc .dot {
+    position: relative; z-index: 1; flex-shrink: 0;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .toc .txt { flex: 1; min-width: 0; }
+  .toc .t { display: block; font-size: 16px; font-weight: 600; line-height: 1.35; }
+  .toc .d {
+    display: block; font-size: 13px; color: var(--ink-3); line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toc .chev { color: var(--ink-4); font-size: 18px; line-height: 1; }
+  /* the journey line between consecutive dots (hidden behind the next dot) */
+  .toc .trip a:not(:last-child)::after {
+    content: ''; position: absolute; left: 29.5px; width: 1.5px;
+    top: calc(50% + 14px); bottom: -50%; background: var(--hairline-strong);
+  }
+  .toc .faq { border-top: 0.5px solid var(--hairline); }
+  .toc .faq .dot { background: var(--bg-2); color: var(--ink-2); }
+
+  .legend { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+  .legend i {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin: 0 5px 1px 0; vertical-align: middle; background: var(--sage);
+  }
+  .legend i.host { background: var(--clay); }
+  .legend span + span { margin-left: 12px; }
 
   /* ── Sections & steps ── */
   section { padding-top: 28px; scroll-margin-top: 56px; }   /* clear the sticky top bar */
@@ -156,16 +187,15 @@
     <h1>3 分鐘學會<br/>用 pun 旅行分帳</h1>
     <p>旅途中誰付了什麼都記在 pun，回國後 App 會算出「最少幾筆轉帳」就能把帳算清楚，大家付完按一下就結清。pun 是網頁 App，加到手機主畫面就能用。</p>
     <nav class="toc" aria-label="目錄">
-      <a href="#start">開始使用</a>
-      <a href="#before">① 出發前</a>
-      <a href="#during">② 旅途中</a>
-      <a href="#after">③ 回國後</a>
-      <a href="#faq">常見問題</a>
+      <div class="trip">
+        <a href="#start"><span class="dot">0</span><span class="txt"><span class="t">開始使用</span><span class="d">加到主畫面、登入</span></span><span class="chev">›</span></a>
+        <a href="#before"><span class="dot">1</span><span class="txt"><span class="t">出發前</span><span class="d">建立旅程、邀請旅伴、認領自己</span></span><span class="chev">›</span></a>
+        <a href="#during"><span class="dot">2</span><span class="txt"><span class="t">旅途中</span><span class="d">記支出、看誰欠誰</span></span><span class="chev">›</span></a>
+        <a href="#after"><span class="dot">3</span><span class="txt"><span class="t">回國後</span><span class="d">付款、結清、匯出帳單</span></span><span class="chev">›</span></a>
+      </div>
+      <a class="faq" href="#faq"><span class="dot">?</span><span class="txt"><span class="t">常見問題</span><span class="d">登入、邀請碼、匯率、更新</span></span><span class="chev">›</span></a>
     </nav>
-    <div class="legend">
-      <span><span class="who">所有人</span> 每個人都會用到</span>
-      <span><span class="who host">開團的人</span> 建立旅程的人做一次就好</span>
-    </div>
+    <p class="legend"><span><i></i>所有人都要做</span><span><i class="host"></i>開團的人做一次</span></p>
   </div>
 
   <!-- ─────────────────────────── 開始使用 -->
